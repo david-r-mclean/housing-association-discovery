@@ -1,0 +1,58 @@
+# Search configuration - Scottish focus
+search:
+  housing_terms:
+    - "housing association scotland"
+    - "scottish housing association"
+    - "housing society scotland"
+    - "community housing scotland"
+    - "social housing scotland"
+    - "registered provider scotland"
+    - "housing trust scotland"
+    - "housing group scotland"
+  
+  # Scottish-specific terms
+  scottish_terms:
+    - "glasgow housing"
+    - "edinburgh housing"
+    - "dundee housing"
+    - "aberdeen housing"
+    - "fife housing"
+    - "highland housing"
+    - "borders housing"
+    - "lothian housing"
+  
+  sic_codes:
+    - "68209"  # Other letting and operating of own or leased real estate
+    - "68100"  # Buying and selling of own real estate
+    - "87900"  # Other residential care activities
+  
+  company_types:
+    - "community-interest-company"
+    - "registered-society"
+    - "limited-company"
+    - "industrial-and-provident-society"
+
+# Scottish regulator URLs
+scottish_regulators:
+  scottish_housing_regulator: "https://www.housingregulator.gov.scot"
+  annual_assurance_statements: "https://www.housingregulator.gov.scot/for-landlords/statutory-guidance/annual-assurance-statements"
+  
+# Output configuration
+output:
+  formats:
+    - csv
+    - json
+    - html
+  
+  league_table:
+    metrics:
+      - company_age
+      - filing_compliance
+      - officer_count
+      - registered_office_changes
+      - scottish_regulator_rating
+
+# Rate limiting
+rate_limits:
+  companies_house: 600  # requests per 5 minutes
+  web_scraping: 1       # seconds between requests
