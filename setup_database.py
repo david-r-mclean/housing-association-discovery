@@ -16,9 +16,10 @@ def setup_database():
     # Check if database URL is configured
     db_url = os.getenv('DATABASE_URL')
     if not db_url:
-        print("❌ DATABASE_URL not found in config/api_keys.env")
-        print("Please add: DATABASE_URL=postgresql://username:password@localhost:5432/housing_associations")
-        return False
+        print("No DATABASE_URL found - using SQLite database")
+        print("Database will be created as: housing_associations.db")
+    else:
+        print(f"Using configured database: {db_url}")
     
     try:
         # Create tables
@@ -32,15 +33,23 @@ def setup_database():
         session.close()
         
         print("✅ Database setup complete!")
-        print(f"Connected to: {db_url}")
+        if db_url:
+            print(f"Connected to: {db_url}")
+        else:
+            print("Connected to: sqlite:///housing_associations.db")
         return True
         
     except Exception as e:
         print(f"❌ Database setup failed: {e}")
-        print("\nTroubleshooting:")
-        print("1. Ensure PostgreSQL is running")
-        print("2. Check DATABASE_URL in config/api_keys.env")
-        print("3. Verify database exists and user has permissions")
+        if db_url:
+            print("\nTroubleshooting:")
+            print("1. Ensure PostgreSQL is running")
+            print("2. Check DATABASE_URL in config/api_keys.env")
+            print("3. Verify database exists and user has permissions")
+        else:
+            print("\nTroubleshooting:")
+            print("1. Ensure you have write permissions in this directory")
+            print("2. Check if SQLite is properly installed")
         return False
 
 if __name__ == "__main__":

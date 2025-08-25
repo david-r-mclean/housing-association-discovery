@@ -18,24 +18,39 @@ class DatabaseManager:
         
         try:
             for assoc_data in associations:
-                # Check if association already exists
-                existing = session.query(HousingAssociation).filter_by(
-                    company_number=assoc_data.get('company_number')
-                ).first()
+                try:
+                    # Check if association already exists
+                    company_number = assoc_data.get('company_number')
+                    if company_number:
+                        existing = session.query(HousingAssociation).filter_by(
+                            company_number=company_number
+                        ).first()
+                        
+                        if existing:
+                            # Update existing record
+                            self._update_association(existing, assoc_data)
+                            print(f"Updated: {assoc_data.get('company_name', assoc_data.get('name'))}")
+                        else:
+                            # Create new record
+                            association = self._create_association(assoc_data)
+                            session.add(association)
+                            print(f"Added: {assoc_data.get('company_name', assoc_data.get('name'))}")
+                        
+                        # Commit each record individually
+                        session.commit()
+                        saved_count += 1
+                        
+                    else:
+                        # No company number - skip or handle differently
+                        print(f"Skipped (no company number): {assoc_data.get('company_name', assoc_data.get('name'))}")
+                        continue
+                        
+                except Exception as e:
+                    # Rollback this individual record and continue
+                    session.rollback()
+                    print(f"Error saving {assoc_data.get('company_name', assoc_data.get('name'))}: {e}")
+                    continue
                 
-                if existing:
-                    # Update existing record
-                    self._update_association(existing, assoc_data)
-                    print(f"Updated: {assoc_data.get('company_name', assoc_data.get('name'))}")
-                else:
-                    # Create new record
-                    association = self._create_association(assoc_data)
-                    session.add(association)
-                    print(f"Added: {assoc_data.get('company_name', assoc_data.get('name'))}")
-                
-                saved_count += 1
-            
-            session.commit()
             print(f"Successfully saved {saved_count} housing associations to database")
             
         except Exception as e:

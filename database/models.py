@@ -94,7 +94,12 @@ class DiscoveryRun(Base):
 
 # Database connection
 def get_database_url():
-    return os.getenv('DATABASE_URL', 'postgresql://housing_user:housing_pass@localhost:5432/housing_associations')
+    db_url = os.getenv('DATABASE_URL')
+    if db_url:
+        return db_url
+    else:
+        # Fallback to SQLite
+        return 'sqlite:///housing_associations.db'
 
 def create_engine_and_session():
     engine = create_engine(get_database_url())
