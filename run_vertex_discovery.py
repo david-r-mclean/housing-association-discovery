@@ -93,12 +93,17 @@ async def main():
             website_agent = WebsiteEnrichmentAgent()
             enriched_associations = []
             
-            for i, association in enumerate(to_process[:10], 1):  # Limit for demo
-                print(f"   Enriching ({i}/{min(len(to_process), 10)}): {association.get('name', 'Unknown')}")
+            # REMOVE THE [:10] LIMIT HERE
+            for i, association in enumerate(to_process, 1):  # Changed from to_process[:10]
+                print(f"   Enriching ({i}/{len(to_process)}): {association.get('name', 'Unknown')}")
                 enriched = association.copy()
                 website_data = website_agent.enrich_association(association)
                 enriched.update(website_data)
                 enriched_associations.append(enriched)
+                
+                # Optional: Add progress indicator for large batches
+                if i % 10 == 0:
+                    print(f"   ✅ Completed {i}/{len(to_process)} associations")
             
             final_associations = enriched_associations
         

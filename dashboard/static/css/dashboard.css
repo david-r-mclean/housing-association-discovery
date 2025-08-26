@@ -1,0 +1,38 @@
+/* Chart container fixes */
+.chart-container {
+    position: relative;
+    height: 250px;
+    width: 100%;
+}
+
+/* Ensure charts don't overflow */
+canvas {
+    max-height: 100% !important;
+    max-width: 100% !important;
+}
+
+/* Fix for Chart.js responsive issues */
+.chartjs-render-monitor {
+    animation: chartjs-render-animation 0.001s;
+}
+
+@keyframes chartjs-render-animation {
+    from { opacity: 0.99; }
+    to { opacity: 1; }
+}
+
+/* Additional responsive fixes */
+@media (max-width: 768px) {
+    .chart-container {
+        height: 200px;
+    }
+}
+
+/* Prevent page overflow */
+body {
+    overflow-x: hidden;
+}
+
+.container {
+    max-width: 100%;
+}

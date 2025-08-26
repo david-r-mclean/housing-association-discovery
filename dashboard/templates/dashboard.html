@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Housing Association Intelligence Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/static/css/dashboard.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/voice-interface.css') }}">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-hover {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .pulse-dot {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .status-online { color: #10b981; }
+        .status-processing { color: #f59e0b; }
+        .status-error { color: #ef4444; }
+        
+        /* Chart height fixes */
+        .chart-wrapper {
+            height: 250px;
+            position: relative;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-lg">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <i class="fas fa-home text-2xl"></i>
+                    <div>
+                        <h1 class="text-2xl font-bold">Housing Association Intelligence</h1>
+                        <p class="text-blue-100">AI-Powered Market Analysis Dashboard</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <div class="pulse-dot w-3 h-3 bg-green-400 rounded-full"></div>
+                        <span id="connection-status" class="text-sm">Connected</span>
+                    </div>
+                    <button id="discover-btn" class="bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-blue-50 transition-colors">
+                        <i class="fas fa-search mr-2"></i>Run Discovery
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Dashboard -->
+    <main class="container mx-auto px-6 py-8">
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-xl shadow-md p-6 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Total Associations</p>
+                        <p id="total-associations" class="text-3xl font-bold text-gray-900">-</p>
+                    </div>
+                    <div class="bg-blue-100 p-3 rounded-full">
+                        <i class="fas fa-building text-blue-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-md p-6 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">AI Enhanced</p>
+                        <p id="ai-enhanced" class="text-3xl font-bold text-green-600">-</p>
+                        <p id="ai-enhancement-rate" class="text-sm text-gray-500">-% coverage</p>
+                    </div>
+                    <div class="bg-green-100 p-3 rounded-full">
+                        <i class="fas fa-brain text-green-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-md p-6 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Avg Digital Maturity</p>
+                        <p id="avg-digital-maturity" class="text-3xl font-bold text-purple-600">-</p>
+                        <p class="text-sm text-gray-500">out of 10</p>
+                    </div>
+                    <div class="bg-purple-100 p-3 rounded-full">
+                        <i class="fas fa-chart-line text-purple-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-md p-6 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Recent Updates</p>
+                        <p id="recent-updates" class="text-3xl font-bold text-orange-600">-</p>
+                        <p class="text-sm text-gray-500">last 7 days</p>
+                    </div>
+                    <div class="bg-orange-100 p-3 rounded-full">
+                        <i class="fas fa-clock text-orange-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- Digital Maturity Distribution -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Digital Maturity Distribution</h3>
+                <div class="h-64 relative">
+                    <canvas id="maturityChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Regional Distribution -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Regional Distribution</h3>
+                <div class="h-64 relative">
+                    <canvas id="regionChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Activity Feed -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Activity Feed -->
+            <div class="lg:col-span-1 bg-white rounded-xl shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                    <i class="fas fa-activity-feed mr-2"></i>Live Activity
+                </h3>
+                <div id="activity-feed" class="space-y-3 max-h-96 overflow-y-auto">
+                    <div class="flex items-center space-x-3 text-sm text-gray-500">
+                        <div class="w-2 h-2 bg-gray-300 rounded-full"></div>
+                        <span>Waiting for activity...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Associations -->
+            <div class="lg:col-span-2 bg-white rounded-xl shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                    <i class="fas fa-trophy mr-2"></i>Top Performing Associations
+                </h3>
+                <div id="top-associations" class="space-y-4">
+                    <div class="text-center text-gray-500 py-8">
+                        <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                        <p>Loading associations...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Market Intelligence Section -->
+        <div class="mt-8 bg-white rounded-xl shadow-md p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                <i class="fas fa-lightbulb mr-2"></i>Market Intelligence
+            </h3>
+            <div id="market-intelligence" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="text-center text-gray-500 py-8">
+                    <i class="fas fa-chart-bar text-2xl mb-2"></i>
+                    <p>Run comprehensive analysis to see market insights</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Discovery Progress Modal -->
+    <div id="discovery-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4">
+            <div class="text-center">
+                <div class="mb-4">
+                    <i class="fas fa-cog fa-spin text-4xl text-blue-600"></i>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900 mb-2">Discovery in Progress</h3>
+                <p id="discovery-status" class="text-gray-600 mb-4">Initializing...</p>
+                <div class="w-full bg-gray-200 rounded-full h-2 mb-4">
+                    <div id="discovery-progress" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <button id="close-modal" class="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors">
+                    Run in Background
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/dashboard.js"></script>
+            <!-- Reports and Downloads Section -->
+        <div class="mt-8 bg-white rounded-xl shadow-md p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-file-alt mr-2"></i>Reports & Downloads
+                </h3>
+                <div class="flex space-x-2">
+                    <button id="refresh-reports" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-sync-alt mr-2"></i>Refresh
+                    </button>
+                    <button id="download-all" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                        <i class="fas fa-download mr-2"></i>Download All
+                    </button>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Data Files -->
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <h4 class="font-semibold text-gray-900 mb-3">
+                        <i class="fas fa-database text-blue-600 mr-2"></i>Data Files
+                    </h4>
+                    <div id="data-files" class="space-y-2">
+                        <div class="text-sm text-gray-500">Loading...</div>
+                    </div>
+                </div>
+                
+                <!-- Reports -->
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <h4 class="font-semibold text-gray-900 mb-3">
+                        <i class="fas fa-chart-bar text-green-600 mr-2"></i>Reports
+                    </h4>
+                    <div id="report-files" class="space-y-2">
+                        <div class="text-sm text-gray-500">Loading...</div>
+                    </div>
+                </div>
+                
+                <!-- League Tables -->
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <h4 class="font-semibold text-gray-900 mb-3">
+                        <i class="fas fa-trophy text-yellow-600 mr-2"></i>League Tables
+                    </h4>
+                    <div id="league-files" class="space-y-2">
+                        <div class="text-sm text-gray-500">Loading...</div>
+                    </div>
+                </div>
+                
+                <!-- Market Intelligence -->
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <h4 class="font-semibold text-gray-900 mb-3">
+                        <i class="fas fa-lightbulb text-purple-600 mr-2"></i>Intelligence
+                    </h4>
+                    <div id="intelligence-files" class="space-y-2">
+                        <div class="text-sm text-gray-500">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ARC Returns Section -->
+        <div class="mt-8 bg-white rounded-xl shadow-md p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-file-invoice text-indigo-600 mr-2"></i>ARC Returns & Filings
+                </h3>
+                <button id="download-arc" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors">
+                    <i class="fas fa-download mr-2"></i>Download ARC Data
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-indigo-50 rounded-lg p-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-building text-indigo-600 text-2xl mr-3"></i>
+                        <div>
+                            <p class="text-sm text-gray-600">Active Associations</p>
+                            <p id="arc-associations" class="text-2xl font-bold text-indigo-600">-</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-green-50 rounded-lg p-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-file-alt text-green-600 text-2xl mr-3"></i>
+                        <div>
+                            <p class="text-sm text-gray-600">Total Filings</p>
+                            <p id="arc-filings" class="text-2xl font-bold text-green-600">-</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-yellow-50 rounded-lg p-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-clock text-yellow-600 text-2xl mr-3"></i>
+                        <div>
+                            <p class="text-sm text-gray-600">Last Updated</p>
+                            <p id="arc-updated" class="text-sm font-semibold text-yellow-600">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Association</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registration Number</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock Units</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Satisfaction Score</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
+                        </tr>
+                    </thead>
+                    <tbody id="arc-table" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="5" class="px-6 py-4 text-center text-gray-500">Loading ARC data...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Comprehensive Insights Section -->
+        <div class="mt-8 bg-white rounded-xl shadow-md p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-6">
+                <i class="fas fa-brain text-pink-600 mr-2"></i>AI-Powered Insights & Recommendations
+            </h3>
+            <div id="comprehensive-insights">
+                <div class="text-center text-gray-500 py-8">
+                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                    <p>Loading comprehensive insights...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Report Viewer Modal -->
+    <div id="report-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <div class="flex items-center justify-between p-6 border-b">
+                <h3 id="report-title" class="text-xl font-semibold text-gray-900">Report Viewer</h3>
+                <button id="close-report-modal" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="report-content" class="p-6 overflow-y-auto max-h-[70vh]">
+                <!-- Report content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+ <!-- Orchestration Control Center -->
+        <div class="mt-8 bg-white rounded-xl shadow-md p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-cogs mr-2"></i>Orchestration Control Center
+                </h3>
+                <div class="flex space-x-2">
+                    <button id="create-orchestrated-workflow" class="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200">
+                        <i class="fas fa-magic mr-2"></i>Create Orchestrated Workflow
+                    </button>
+                    <button id="refresh-workflows" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-sync-alt mr-2"></i>Refresh
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Orchestration Metrics -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-project-diagram text-blue-600 text-2xl mr-3"></i>
+                        <div>
+                            <p class="text-sm text-gray-600">Active Workflows</p>
+                            <p id="active-workflows" class="text-2xl font-bold text-blue-600">0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-tasks text-green-600 text-2xl mr-3"></i>
+                        <div>
+                            <p class="text-sm text-gray-600">Tasks Executed</p>
+                            <p id="tasks-executed" class="text-2xl font-bold text-green-600">0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg p-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-clock text-yellow-600 text-2xl mr-3"></i>
+                        <div>
+                            <p class="text-sm text-gray-600">Avg Execution Time</p>
+                            <p id="avg-execution-time" class="text-2xl font-bold text-yellow-600">0s</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-chart-line text-purple-600 text-2xl mr-3"></i>
+                        <div>
+                            <p class="text-sm text-gray-600">Success Rate</p>
+                            <p id="success-rate" class="text-2xl font-bold text-purple-600">0%</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Active Workflows -->
+            <div class="mb-6">
+                <h4 class="text-lg font-semibold text-gray-900 mb-4">Active Workflows</h4>
+                <div id="active-workflows-list" class="space-y-4">
+                    <div class="text-center text-gray-500 py-8">
+                        <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                        <p>Loading workflows...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Workflow Creation Modal -->
+        <div id="workflow-creation-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+            <div class="bg-white rounded-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden">
+                <div class="flex items-center justify-between p-6 border-b">
+                    <h3 class="text-xl font-semibold text-gray-900">Create Orchestrated Workflow</h3>
+                    <button id="close-workflow-modal" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="p-6 overflow-y-auto max-h-[70vh]">
+                    <div class="space-y-6">
+                        <!-- Workflow Configuration -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Industry Type</label>
+                                <select id="workflow-industry" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                                    <option value="housing_associations">Housing Associations</option>
+                                    <option value="charities">Charities</option>
+                                    <option value="care_homes">Care Homes</option>
+                                    <option value="schools">Schools</option>
+                                    <option value="healthcare">Healthcare Providers</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Region</label>
+                                <select id="workflow-region" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                                    <option value="all">All Regions</option>
+                                    <option value="scotland">Scotland</option>
+                                    <option value="england">England</option>
+                                    <option value="wales">Wales</option>
+                                    <option value="northern_ireland">Northern Ireland</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Advanced Options -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Parallel Tasks</label>
+                                <select id="workflow-parallel" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                                    <option value="3">3 Parallel Tasks</option>
+                                    <option value="5" selected>5 Parallel Tasks</option>
+                                    <option value="10">10 Parallel Tasks</option>
+                                    <option value="15">15 Parallel Tasks</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Failure Strategy</label>
+                                <select id="workflow-failure-strategy" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                                    <option value="stop">Stop on Failure</option>
+                                    <option value="continue" selected>Continue on Failure</option>
+                                    <option value="retry">Retry on Failure</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Workflow Features -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-3">Workflow Features</label>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="workflow-use-ai" class="mr-2" checked>
+                                    <span class="text-sm text-gray-700">AI Analysis & Intelligence</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="workflow-monitoring" class="mr-2" checked>
+                                    <span class="text-sm text-gray-700">Real-time Monitoring</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="workflow-notifications" class="mr-2" checked>
+                                    <span class="text-sm text-gray-700">Completion Notifications</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="workflow-reports" class="mr-2" checked>
+                                    <span class="text-sm text-gray-700">Comprehensive Reports</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Workflow Preview -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h5 class="font-medium text-gray-900 mb-3">Workflow Pipeline Preview</h5>
+                            <div class="flex items-center space-x-2 text-sm text-gray-600 overflow-x-auto">
+                                <div class="flex items-center space-x-1 whitespace-nowrap">
+                                    <i class="fas fa-search text-blue-500"></i>
+                                    <span>Discovery</span>
+                                </div>
+                                <i class="fas fa-arrow-right text-gray-400"></i>
+                                <div class="flex items-center space-x-1 whitespace-nowrap">
+                                    <i class="fas fa-check-circle text-green-500"></i>
+                                    <span>Validation</span>
+                                </div>
+                                <i class="fas fa-arrow-right text-gray-400"></i>
+                                <div class="flex items-center space-x-1 whitespace-nowrap">
+                                    <i class="fas fa-globe text-purple-500"></i>
+                                    <span>Enrichment</span>
+                                </div>
+                                <i class="fas fa-arrow-right text-gray-400"></i>
+                                <div class="flex items-center space-x-1 whitespace-nowrap">
+                                    <i class="fas fa-brain text-pink-500"></i>
+                                    <span>AI Analysis</span>
+                                </div>
+                                <i class="fas fa-arrow-right text-gray-400"></i>
+                                <div class="flex items-center space-x-1 whitespace-nowrap">
+                                    <i class="fas fa-database text-indigo-500"></i>
+                                    <span>Storage</span>
+                                </div>
+                                <i class="fas fa-arrow-right text-gray-400"></i>
+                                <div class="flex items-center space-x-1 whitespace-nowrap">
+                                    <i class="fas fa-chart-bar text-yellow-500"></i>
+                                    <span>Reports</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center justify-end space-x-4 p-6 border-t">
+                    <button id="cancel-workflow-creation" class="px-4 py-2 text-gray-600 hover:text-gray-800">Cancel</button>
+                    <button id="create-workflow-confirm" class="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200">
+                        <i class="fas fa-rocket mr-2"></i>Create Workflow
+                    </button>
+                </div>
+            </div>
+        </div>
+
+<!-- AI Conversational Interface -->
+        <div class="mt-8 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl shadow-md p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-robot mr-2 text-blue-600"></i>AI Assistant - Tell me what you're looking for
+                </h3>
+                <div class="flex space-x-2">
+                    <button id="clear-conversation" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors">
+                        <i class="fas fa-trash mr-2"></i>Clear
+                    </button>
+                    <button id="conversation-history" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-history mr-2"></i>History
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Chat Interface -->
+            <div class="bg-white rounded-lg shadow-inner p-4 mb-4 max-h-96 overflow-y-auto" id="chat-messages">
+                <div class="flex items-start space-x-3 mb-4">
+                    <div class="flex-shrink-0">
+                        <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                            <i class="fas fa-robot text-white text-sm"></i>
+                        </div>
+                    </div>
+                    <div class="flex-1">
+                        <div class="bg-blue-50 rounded-lg p-3">
+                            <p class="text-gray-800">
+                                👋 Hi! I'm your AI assistant. Tell me what you're looking for and I'll help you discover and analyze organizations. 
+                                
+                                For example, you could say:
+                                <br>• "Find housing associations in Scotland and analyze their digital maturity"
+                                <br>• "Compare care homes in London by quality ratings"
+                                <br>• "Monitor charities in the North West for performance changes"
+                                <br>• "Research market trends in the healthcare sector"
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div id="voice-control-panel" class="voice-control-panel">
+    <div class="voice-header">
+        <h3><i class="fas fa-microphone"></i> Voice Assistant</h3>
+        <div class="voice-status-container">
+            <div id="voice-status" class="voice-status ready">Ready</div>
+            <div id="voice-indicator" class="voice-indicator idle"></div>
+        </div>
+    </div>
+    
+    <div class="voice-controls">
+        <button id="voice-control-button" class="voice-control-button idle" title="Start Voice Input">
+            <i class="fas fa-microphone"></i>
+        </button>
+        
+        <button id="continuous-listening-toggle" class="voice-toggle-button" title="Toggle Continuous Listening">
+            <i class="fas fa-ear-listen"></i>
+        </button>
+        
+        <button id="voice-settings-button" class="voice-settings-button" title="Voice Settings">
+            <i class="fas fa-cog"></i>
+        </button>
+    </div>
+    
+    <div id="interim-transcript" class="interim-transcript" style="display: none;"></div>
+    
+    <div id="continuous-listening-indicator" class="continuous-listening-indicator" style="display: none;">
+        <i class="fas fa-circle"></i> Continuous Listening Active
+    </div>
+</div>
+
+<!-- Voice Settings Modal -->
+<div id="voice-settings-modal" class="modal voice-settings-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-microphone-lines"></i> Voice Settings</h3>
+            <button class="modal-close" onclick="closeVoiceSettings()">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+            <div class="settings-section">
+                <h4>Speech Recognition</h4>
+                
+                <div class="setting-item">
+                    <label for="language-selector">Language:</label>
+                    <select id="language-selector" class="form-control">
+                        <option value="en-US">English (US)</option>
+                        <option value="en-GB">English (UK)</option>
+                        <option value="en-AU">English (Australia)</option>
+                        <option value="es-ES">Spanish (Spain)</option>
+                        <option value="fr-FR">French (France)</option>
+                        <option value="de-DE">German (Germany)</option>
+                    </select>
+                </div>
+                
+                <div class="setting-item">
+                    <label for="wake-word-input">Wake Word:</label>
+                    <input type="text" id="wake-word-input" class="form-control" value="hey dashboard" placeholder="Enter wake word">
+                </div>
+                
+                <div class="setting-item">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="continuous-listening-toggle">
+                        <span class="checkmark"></span>
+                        Continuous Listening
+                    </label>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h4>Speech Synthesis</h4>
+                
+                <div class="setting-item">
+                    <label for="voice-selector">Voice:</label>
+                    <select id="voice-selector" class="form-control">
+                        <!-- Populated by JavaScript -->
+                    </select>
+                </div>
+                
+                <div class="setting-item">
+                    <label for="voice-speed">Speed: <span id="speed-value">1.0</span></label>
+                    <input type="range" id="voice-speed" min="0.5" max="2.0" step="0.1" value="1.0" class="slider">
+                </div>
+                
+                <div class="setting-item">
+                    <label for="voice-pitch">Pitch: <span id="pitch-value">1.0</span></label>
+                    <input type="range" id="voice-pitch" min="0.5" max="2.0" step="0.1" value="1.0" class="slider">
+                </div>
+                
+                <div class="setting-item">
+                    <label for="voice-volume">Volume: <span id="volume-value">1.0</span></label>
+                    <input type="range" id="voice-volume" min="0.1" max="1.0" step="0.1" value="1.0" class="slider">
+                </div>
+                
+                <div class="setting-item">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="auto-speak-toggle" checked>
+                        <span class="checkmark"></span>
+                        Auto-speak AI responses
+                    </label>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h4>Voice Commands</h4>
+                <div class="voice-commands-help">
+                    <ul>
+                        <li><strong>"Hey Dashboard"</strong> - Wake word for continuous listening</li>
+                        <li><strong>"Stop listening"</strong> - Stop voice input</li>
+                        <li><strong>"Clear conversation"</strong> - Clear chat history</li>
+                        <li><strong>"Refresh dashboard"</strong> - Reload dashboard data</li>
+                        <li><strong>"Speak slower/faster"</strong> - Adjust speech speed</li>
+                        <li><strong>"Show help"</strong> - Display voice commands</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="resetVoiceSettings()">Reset to Defaults</button>
+            <button class="btn btn-primary" onclick="testVoiceSettings()">Test Voice</button>
+            <button class="btn btn-primary" onclick="closeVoiceSettings()">Save & Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add before closing </body> tag -->
+<script src="{{ url_for('static', path='js/voice_interface.js') }}"></script>
+<script>
+// Voice settings modal functions
+function openVoiceSettings() {
+    document.getElementById('voice-settings-modal').style.display = 'block';
+}
+
+function closeVoiceSettings() {
+    document.getElementById('voice-settings-modal').style.display = 'none';
+}
+
+function resetVoiceSettings() {
+    if (window.voiceInterface) {
+        window.voiceInterface.settings = {
+            language: 'en-US',
+            voiceSpeed: 1.0,
+            voicePitch: 1.0,
+            voiceVolume: 1.0,
+            autoSpeak: true,
+            wakeWord: 'hey dashboard',
+            continuousListening: false,
+            noiseReduction: true
+        };
+        window.voiceInterface.saveSettings();
+        window.voiceInterface.updateSettingsUI();
+    }
+}
+
+function testVoiceSettings() {
+    if (window.voiceInterface) {
+        window.voiceInterface.speak('This is a test of your voice settings. How does this sound?');
+    }
+}
+
+// Event listeners for voice settings
+document.addEventListener('DOMContentLoaded', function() {
+    // Voice settings button
+    document.getElementById('voice-settings-button')?.addEventListener('click', openVoiceSettings);
+    
+    // Slider value updates
+    document.getElementById('voice-speed')?.addEventListener('input', function(e) {
+        document.getElementById('speed-value').textContent = e.target.value;
+    });
+    
+    document.getElementById('voice-pitch')?.addEventListener('input', function(e) {
+        document.getElementById('pitch-value').textContent = e.target.value;
+    });
+    
+    document.getElementById('voice-volume')?.addEventListener('input', function(e) {
+        document.getElementById('volume-value').textContent = e.target.value;
+    });
+    
+    // Close modal when clicking outside
+    window.addEventListener('click', function(event) {
+        const modal = document.getElementById('voice-settings-modal');
+        if (event.target === modal) {
+            closeVoiceSettings();
+        }
+    });
+});
+</script>
+            </div>
+            
+            <!-- Input Area -->
+            <div class="flex space-x-4">
+                <div class="flex-1">
+                    <textarea id="user-message" 
+                              placeholder="Describe what you're looking for... (e.g., 'Find and analyze housing associations in Scotland focusing on digital services')"
+                              class="w-full border border-gray-300 rounded-lg px-4 py-3 resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              rows="3"></textarea>
+                </div>
+                <div class="flex flex-col space-y-2">
+                    <button id="send-message" class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-semibold">
+                        <i class="fas fa-paper-plane mr-2"></i>Ask AI
+                    </button>
+                    <button id="voice-input" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Quick Suggestions -->
+            <div class="mt-4">
+                <p class="text-sm text-gray-600 mb-2">Quick suggestions:</p>
+                <div class="flex flex-wrap gap-2">
+                    <button class="suggestion-btn bg-white border border-gray-300 rounded-full px-3 py-1 text-sm hover:bg-gray-50 transition-colors">
+                        Analyze housing associations in my region
+                    </button>
+                    <button class="suggestion-btn bg-white border border-gray-300 rounded-full px-3 py-1 text-sm hover:bg-gray-50 transition-colors">
+                        Compare top performing charities
+                    </button>
+                    <button class="suggestion-btn bg-white border border-gray-300 rounded-full px-3 py-1 text-sm hover:bg-gray-50 transition-colors">
+                        Find care homes with excellent ratings
+                    </button>
+                    <button class="suggestion-btn bg-white border border-gray-300 rounded-full px-3 py-1 text-sm hover:bg-gray-50 transition-colors">
+                        Research market trends and opportunities
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Intent Understanding Modal -->
+        <div id="intent-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+            <div class="bg-white rounded-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+                <div class="flex items-center justify-between p-6 border-b">
+                    <h3 class="text-xl font-semibold text-gray-900">
+                        <i class="fas fa-brain mr-2 text-purple-600"></i>AI Understanding & Recommendations
+                    </h3>
+                    <button id="close-intent-modal" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <div class="p-6 overflow-y-auto max-h-[70vh]">
+                    <!-- Intent Understanding -->
+                    <div class="mb-6">
+                        <h4 class="text-lg font-semibold text-gray-900 mb-3">What I Understood</h4>
+                        <div id="understood-intent" class="bg-blue-50 rounded-lg p-4">
+                            <!-- Intent summary will be populated here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Clarifying Questions -->
+                    <div id="clarifying-questions-section" class="mb-6" style="display: none;">
+                        <h4 class="text-lg font-semibold text-gray-900 mb-3">A few questions to help me better understand:</h4>
+                        <div id="clarifying-questions" class="space-y-3">
+                            <!-- Questions will be populated here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Recommended Approach -->
+                    <div class="mb-6">
+                        <h4 class="text-lg font-semibold text-gray-900 mb-3">Recommended Approach</h4>
+                        <div id="recommended-agents" class="space-y-3">
+                            <!-- Agent recommendations will be populated here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Execution Timeline -->
+                    <div class="mb-6">
+                        <h4 class="text-lg font-semibold text-gray-900 mb-3">Execution Timeline</h4>
+                        <div id="execution-timeline" class="bg-gray-50 rounded-lg p-4">
+                            <!-- Timeline will be populated here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center justify-between p-6 border-t">
+                    <div class="flex space-x-2">
+                        <button id="refine-request" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors">
+                            <i class="fas fa-edit mr-2"></i>Refine Request
+                        </button>
+                        <button id="save-for-later" class="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors">
+                            <i class="fas fa-bookmark mr-2"></i>Save for Later
+                        </button>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button id="cancel-intent" class="px-4 py-2 text-gray-600 hover:text-gray-800">Cancel</button>
+                        <button id="execute-intent" class="bg-gradient-to-r from-green-600 to-blue-600 text-white px-6 py-2 rounded-lg hover:from-green-700 hover:to-blue-700 transition-all duration-200">
+                            <i class="fas fa-rocket mr-2"></i>Execute Analysis
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+<!-- Reports Viewer Section -->
+        <div class="mt-8 bg-white rounded-xl shadow-md p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-chart-line mr-2"></i>Reports Viewer
+                </h3>
+                <div class="flex space-x-2">
+                    <select id="report-filter" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="all">All Reports</option>
+                        <option value="data">Data Files</option>
+                        <option value="reports">Analysis Reports</option>
+                        <option value="league_tables">League Tables</option>
+                        <option value="intelligence">Market Intelligence</option>
+                    </select>
+                    <button id="refresh-reports-viewer" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-sync-alt mr-2"></i>Refresh
+                    </button>
+                </div>
+            </div>
+            
+            <div id="reports-viewer-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="text-center text-gray-500 py-8 col-span-full">
+                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                    <p>Loading reports...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enhanced Report Content Viewer -->
+        <div class="mt-8 bg-white rounded-xl shadow-md p-6" id="report-content-section" style="display: none;">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-semibold text-gray-900" id="current-report-title">
+                    <i class="fas fa-file-alt mr-2"></i>Report Content
+                </h3>
+                <div class="flex space-x-2">
+                    <button id="download-current-report" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                        <i class="fas fa-download mr-2"></i>Download
+                    </button>
+                    <button id="close-report-viewer" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors">
+                        <i class="fas fa-times mr-2"></i>Close
+                    </button>
+                </div>
+            </div>
+            
+            <div id="report-content-display" class="border border-gray-200 rounded-lg p-4 max-h-96 overflow-y-auto">
+                <!-- Report content will be displayed here -->
+            </div>
+        </div>
+
+        <!-- Industry Selection and Discovery Controls -->
+        <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-search mr-2"></i>Discovery Configuration
+                </h3>
+                <button id="save-config" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors">
+                    <i class="fas fa-save mr-2"></i>Save Config
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Industry Selection -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Industry Type</label>
+                    <select id="industry-select" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                        <option value="housing_associations">Housing Associations</option>
+                        <option value="charities">Charities</option>
+                        <option value="care_homes">Care Homes</option>
+                        <option value="schools">Schools</option>
+                        <option value="healthcare">Healthcare Providers</option>
+                        <option value="social_enterprises">Social Enterprises</option>
+                        <option value="cooperatives">Cooperatives</option>
+                        <option value="credit_unions">Credit Unions</option>
+                        <option value="community_groups">Community Groups</option>
+                        <option value="environmental_orgs">Environmental Organizations</option>
+                    </select>
+                </div>
+                
+                <!-- Region Selection -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Region</label>
+                    <select id="region-select" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                        <option value="all">All Regions</option>
+                        <option value="scotland">Scotland</option>
+                        <option value="england">England</option>
+                        <option value="wales">Wales</option>
+                        <option value="northern_ireland">Northern Ireland</option>
+                        <option value="london">London</option>
+                        <option value="north_west">North West</option>
+                        <option value="south_east">South East</option>
+                        <option value="midlands">Midlands</option>
+                        <option value="yorkshire">Yorkshire</option>
+                        <option value="north_east">North East</option>
+                        <option value="south_west">South West</option>
+                    </select>
+                </div>
+                
+                <!-- Discovery Limit -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Discovery Limit</label>
+                    <select id="limit-select" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                        <option value="">No Limit</option>
+                        <option value="50">50 Organizations</option>
+                        <option value="100">100 Organizations</option>
+                        <option value="250">250 Organizations</option>
+                        <option value="500">500 Organizations</option>
+                        <option value="1000">1000 Organizations</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Custom Keywords -->
+            <div class="mt-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Custom Keywords (comma-separated)</label>
+                <input type="text" id="custom-keywords" placeholder="e.g., affordable housing, community care, education" 
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2">
+            </div>
+            
+            <!-- Discovery Options -->
+            <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <label class="flex items-center">
+                    <input type="checkbox" id="use-ai-analysis" class="mr-2" checked>
+                    <span class="text-sm text-gray-700">AI Analysis</span>
+                </label>
+                <label class="flex items-center">
+                    <input type="checkbox" id="save-to-database" class="mr-2" checked>
+                    <span class="text-sm text-gray-700">Save to Database</span>
+                </label>
+                <label class="flex items-center">
+                    <input type="checkbox" id="comprehensive-analysis" class="mr-2">
+                    <span class="text-sm text-gray-700">Comprehensive Analysis</span>
+                </label>
+            </div>
+            
+            <!-- Enhanced Discovery Button -->
+            <div class="mt-6 flex space-x-4">
+                <button id="discover-btn-enhanced" class="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-semibold">
+                    <i class="fas fa-rocket mr-2"></i>Start Discovery
+                </button>
+                <button id="preview-config" class="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors">
+                    <i class="fas fa-eye mr-2"></i>Preview
+                </button>
+            </div>
+        </div>
+
+        <!-- Industry Information Panel -->
+        <div id="industry-info" class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 mb-8" style="display: none;">
+            <div class="flex items-start space-x-4">
+                <div class="flex-shrink-0">
+                    <i id="industry-icon" class="fas fa-building text-3xl text-indigo-600"></i>
+                </div>
+                <div class="flex-1">
+                    <h4 id="industry-name" class="text-xl font-semibold text-gray-900 mb-2">Industry Name</h4>
+                    <p id="industry-description" class="text-gray-700 mb-4">Industry description...</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <h5 class="font-medium text-gray-900 mb-2">Data Sources</h5>
+                            <ul id="industry-sources" class="text-sm text-gray-600 space-y-1">
+                                <!-- Sources will be populated here -->
+                            </ul>
+                        </div>
+                        <div>
+                            <h5 class="font-medium text-gray-900 mb-2">Search Keywords</h5>
+                            <div id="industry-keywords" class="flex flex-wrap gap-1">
+                                <!-- Keywords will be populated here -->
+                            </div>
+                        </div>
+                        <div>
+                            <h5 class="font-medium text-gray-900 mb-2">Expected Fields</h5>
+                            <ul id="industry-fields" class="text-sm text-gray-600 space-y-1">
+                                <!-- Fields will be populated here -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+</body>
+</html>

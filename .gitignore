@@ -1,13 +1,6 @@
-# Environment variables and API keys
-config/api_keys.env
+# Environment variables
 .env
-
-# Data files (too large for git)
-storage/
-outputs/
-*.csv
-*.json
-*.pdf
+*.env
 
 # Python
 __pycache__/
@@ -30,21 +23,68 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
 # OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
 
 # Logs
 *.log
 logs/
 
+# Generated files
+generated_components/
+generated_endpoints/
+generated_agents/
+
+# Google Cloud credentials
+*.json
+service-account-*.json
+*-key.json
+
+# API keys and secrets
+*api_key*
+*secret*
+*credentials*
+
 # Temporary files
-temp/
 tmp/
+temp/
+.tmp/
+
+# Node modules (if any)
+node_modules/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
