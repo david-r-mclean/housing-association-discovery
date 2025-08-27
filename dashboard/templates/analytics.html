@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - Housing Association Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <a href="/" class="text-xl font-bold text-blue-600">
+                        <i class="fas fa-home mr-2"></i>Housing Discovery
+                    </a>
+                    <span class="ml-4 text-gray-500">|</span>
+                    <span class="ml-4 text-gray-700">Analytics</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/dashboard" class="text-gray-600 hover:text-gray-900">
+                        <i class="fas fa-dashboard mr-1"></i>Dashboard
+                    </a>
+                    <a href="/social-media" class="text-gray-600 hover:text-gray-900">
+                        <i class="fab fa-twitter mr-1"></i>Social Media
+                    </a>
+                    <a href="/documents" class="text-gray-600 hover:text-gray-900">
+                        <i class="fas fa-file-alt mr-1"></i>Documents
+                    </a>
+                    <a href="/analytics" class="text-blue-600 font-medium">
+                        <i class="fas fa-chart-line mr-1"></i>Analytics
+                    </a>
+                    <a href="/files" class="text-gray-600 hover:text-gray-900">
+                        <i class="fas fa-folder mr-1"></i>Files
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Analytics Dashboard</h1>
+            <p class="text-gray-600">Comprehensive analytics and insights</p>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-2 bg-blue-100 rounded-lg">
+                        <i class="fas fa-users text-blue-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Total Users</p>
+                        <p class="text-2xl font-bold text-gray-900">2,847</p>
+                        <p class="text-xs text-green-600">+12% from last month</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-2 bg-green-100 rounded-lg">
+                        <i class="fas fa-chart-line text-green-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Searches</p>
+                        <p class="text-2xl font-bold text-gray-900">18,392</p>
+                        <p class="text-xs text-green-600">+8% from last month</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-2 bg-purple-100 rounded-lg">
+                        <i class="fas fa-clock text-purple-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Avg. Session</p>
+                        <p class="text-2xl font-bold text-gray-900">4m 32s</p>
+                        <p class="text-xs text-red-600">-2% from last month</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-2 bg-orange-100 rounded-lg">
+                        <i class="fas fa-percentage text-orange-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Success Rate</p>
+                        <p class="text-2xl font-bold text-gray-900">94.2%</p>
+                        <p class="text-xs text-green-600">+1.2% from last month</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- Usage Trends -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Usage Trends</h3>
+                <div style="height: 300px;">
+                    <canvas id="usageTrendsChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Feature Usage -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Feature Usage</h3>
+                <div style="height: 300px;">
+                    <canvas id="featureUsageChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Metrics -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Response Times -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Response Times</h3>
+                <div style="height: 200px;">
+                    <canvas id="responseTimesChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Error Rates -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Error Rates</h3>
+                <div style="height: 200px;">
+                    <canvas id="errorRatesChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- User Satisfaction -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">User Satisfaction</h3>
+                <div class="text-center py-8">
+                    <div class="text-4xl font-bold text-green-600 mb-2">4.7</div>
+                    <div class="text-gray-600 mb-4">out of 5.0</div>
+                    <div class="flex justify-center space-x-1">
+                        <i class="fas fa-star text-yellow-400"></i>
+                        <i class="fas fa-star text-yellow-400"></i>
+                        <i class="fas fa-star text-yellow-400"></i>
+                        <i class="fas fa-star text-yellow-400"></i>
+                        <i class="fas fa-star text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize charts when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeAnalyticsCharts();
+        });
+
+        function initializeAnalyticsCharts() {
+            // Usage Trends Chart
+            const usageCtx = document.getElementById('usageTrendsChart').getContext('2d');
+            new Chart(usageCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+                    datasets: [{
+                        label: 'Active Users',
+                        data: [1200, 1900, 3000, 5000, 2000, 3000, 2847],
+                        borderColor: '#3B82F6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4
+                    }, {
+                        label: 'Searches',
+                        data: [800, 1200, 2000, 3500, 1500, 2200, 1839],
+                        borderColor: '#10B981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Feature Usage Chart
+            const featureCtx = document.getElementById('featureUsageChart').getContext('2d');
+            new Chart(featureCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Housing Search', 'Social Media', 'Documents', 'Analytics', 'AI Chat'],
+                    datasets: [{
+                        label: 'Usage Count',
+                        data: [4500, 3200, 2800, 1200, 3800],
+                        backgroundColor: ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Response Times Chart
+            const responseCtx = document.getElementById('responseTimesChart').getContext('2d');
+            new Chart(responseCtx, {
+                type: 'line',
+                data: {
+                    labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'],
+                    datasets: [{
+                        label: 'Response Time (ms)',
+                        data: [120, 150, 200, 180, 160, 140],
+                        borderColor: '#8B5CF6',
+                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Error Rates Chart
+            const errorCtx = document.getElementById('errorRatesChart').getContext('2d');
+            new Chart(errorCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [{
+                        label: 'Error Rate (%)',
+                        data: [2.1, 1.8, 2.5, 1.9, 2.2, 1.5, 1.7],
+                        backgroundColor: '#EF4444'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 5
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

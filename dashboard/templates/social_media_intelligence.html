@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Media Intelligence - Housing Association Discovery</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .social-platform-card {
+            transition: all 0.3s ease;
+        }
+        .social-platform-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .sentiment-positive { color: #10b981; }
+        .sentiment-negative { color: #ef4444; }
+        .sentiment-neutral { color: #6b7280; }
+        .analysis-loading {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <a href="/" class="text-xl font-bold text-blue-600">
+                        <i class="fas fa-home mr-2"></i>Housing Discovery
+                    </a>
+                    <span class="ml-4 text-gray-500">|</span>
+                    <span class="ml-4 text-gray-700">Social Media Intelligence</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/dashboard" class="text-gray-600 hover:text-gray-900">
+                     <i class="fas fa-dashboard mr-1"></i>Dashboard
+                    </a>
+                    <a href="/social-media" class="text-blue-600 font-medium">
+                        <i class="fab fa-twitter mr-1"></i>Social Media
+                    </a>
+                    <a href="/documents" class="text-gray-600 hover:text-gray-900">
+                        <i class="fas fa-file-alt mr-1"></i>Documents
+                    </a>
+                    <a href="/analytics" class="text-gray-600 hover:text-gray-900">
+                        <i class="fas fa-chart-line mr-1"></i>Analytics
+                    </a>
+                    <a href="/files" class="text-gray-600 hover:text-gray-900">
+                        <i class="fas fa-folder mr-1"></i>Files
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Social Media Intelligence</h1>
+            <p class="text-gray-600">Comprehensive social media analysis for housing associations</p>
+        </div>
+
+        <!-- Dashboard Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-2 bg-blue-100 rounded-lg">
+                        <i class="fas fa-building text-blue-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Associations Analyzed</p>
+                        <p class="text-2xl font-bold text-gray-900" id="total-associations">-</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-2 bg-green-100 rounded-lg">
+                        <i class="fas fa-users text-green-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Profiles Found</p>
+                        <p class="text-2xl font-bold text-gray-900" id="total-profiles">-</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-2 bg-purple-100 rounded-lg">
+                        <i class="fas fa-comments text-purple-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Posts Analyzed</p>
+                        <p class="text-2xl font-bold text-gray-900" id="total-posts">-</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-2 bg-orange-100 rounded-lg">
+                        <i class="fas fa-chart-line text-orange-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Reports Generated</p>
+                        <p class="text-2xl font-bold text-gray-900" id="total-reports">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Platform Overview -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- Platform Distribution -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Platform Distribution</h3>
+                <canvas id="platformChart" width="400" height="200"></canvas>
+            </div>
+            
+            <!-- Sentiment Overview Chart -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Sentiment Overview</h3>
+                <div class="relative" style="height: 300px; max-height: 300px;">
+                    <canvas id="sentimentChart" style="max-height: 300px;"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Supported Platforms -->
+        <div class="bg-white rounded-lg shadow p-6 mb-8">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Supported Platforms</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="platforms-grid">
+                <!-- Platforms will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Recent Reports -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg font-semibold text-gray-900">Recent Analysis Reports</h3>
+                    <button onclick="refreshReports()" class="text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-refresh mr-1"></i>Refresh
+                    </button>
+                </div>
+            </div>
+            <div class="p-6">
+                <div id="reports-list">
+                    <!-- Reports will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analysis Modal -->
+    <div id="analysisModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-semibold text-gray-900">Social Media Analysis</h3>
+                        <button onclick="hideAnalysisModal()" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <form id="analysisForm" class="p-6">
+                    <div class="space-y-6">
+                        <!-- Housing Association -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Housing Association Name *
+                            </label>
+                            <input type="text" id="associationName" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   placeholder="Enter housing association name">
+                        </div>
+                        
+                        <!-- Additional Search Terms -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Additional Search Terms (optional)
+                            </label>
+                            <textarea id="searchTerms" rows="3"
+                                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      placeholder="Enter additional search terms, one per line"></textarea>
+                        </div>
+                        
+                        <!-- Platforms -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Platforms to Analyze
+                            </label>
+                            <div class="grid grid-cols-2 gap-3" id="platformCheckboxes">
+                                <!-- Platform checkboxes will be loaded here -->
+                            </div>
+                        </div>
+                        
+                        <!-- Analysis Depth -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Analysis Depth
+                            </label>
+                            <select id="analysisDepth" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="basic">Basic - Profile discovery and basic metrics</option>
+                                <option value="standard" selected>Standard - Profiles, posts, and engagement</option>
+                                <option value="comprehensive">Comprehensive - Full analysis with AI insights</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 flex justify-end space-x-3">
+                        <button type="button" onclick="hideAnalysisModal()" 
+                                class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                            Cancel
+                        </button>
+                        <button type="submit" 
+                                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                            <i class="fas fa-search mr-2"></i>Start Analysis
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analysis Progress Modal -->
+    <div id="progressModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+                <div class="p-6 text-center">
+                    <div class="analysis-loading mb-4">
+                        <i class="fas fa-search text-4xl text-blue-600"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Analyzing Social Media</h3>
+                    <p class="text-gray-600 mb-4" id="progressText">Starting analysis...</p>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-blue-600 h-2 rounded-full transition-all duration-300" id="progressBar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Details Modal -->
+    <div id="reportModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-screen overflow-y-auto">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-semibold text-gray-900">Analysis Report</h3>
+                        <button onclick="hideReportModal()" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-6" id="reportContent">
+                    <!-- Report content will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/social_media_intelligence.js"></script>
+</body>
+</html>

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Discovery - Housing Association Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <a href="/" class="text-xl font-bold text-blue-600">
+                        <i class="fas fa-home mr-2"></i>Housing Discovery
+                    </a>
+                    <span class="ml-4 text-gray-500">|</span>
+                    <span class="ml-4 text-gray-700">Document Discovery</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/dashboard" class="text-gray-600 hover:text-gray-900">
+                        <i class="fas fa-dashboard mr-1"></i>Dashboard
+                    </a>
+                    <a href="/social-media" class="text-gray-600 hover:text-gray-900">
+                        <i class="fab fa-twitter mr-1"></i>Social Media
+                    </a>
+                    <a href="/documents" class="text-blue-600 font-medium">
+                        <i class="fas fa-file-alt mr-1"></i>Documents
+                    </a>
+                    <a href="/analytics" class="text-gray-600 hover:text-gray-900">
+                        <i class="fas fa-chart-line mr-1"></i>Analytics
+                    </a>
+                    <a href="/files" class="text-gray-600 hover:text-gray-900">
+                        <i class="fas fa-folder mr-1"></i>Files
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Document Discovery</h1>
+            <p class="text-gray-600">Find and analyze regulatory documents and policies</p>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-2 bg-blue-100 rounded-lg">
+                        <i class="fas fa-file-alt text-blue-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Total Documents</p>
+                        <p class="text-2xl font-bold text-gray-900">3,891</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-2 bg-green-100 rounded-lg">
+                        <i class="fas fa-search text-green-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Searches Today</p>
+                        <p class="text-2xl font-bold text-gray-900">127</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-2 bg-purple-100 rounded-lg">
+                        <i class="fas fa-tags text-purple-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Categories</p>
+                        <p class="text-2xl font-bold text-gray-900">24</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-2 bg-orange-100 rounded-lg">
+                        <i class="fas fa-clock text-orange-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Last Updated</p>
+                        <p class="text-2xl font-bold text-gray-900">2h ago</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Document Types</h3>
+                <div style="height: 300px;">
+                    <canvas id="documentTypesChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Monthly Discoveries</h3>
+                <div style="height: 300px;">
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Interface -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Document Search</h3>
+            <div class="flex space-x-4">
+                <input type="text" placeholder="Search documents..." 
+                       class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    <i class="fas fa-search mr-2"></i>Search
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize charts when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDocumentCharts();
+        });
+
+        function initializeDocumentCharts() {
+            // Document Types Chart
+            const docTypesCtx = document.getElementById('documentTypesChart').getContext('2d');
+            new Chart(docTypesCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Policies', 'Regulations', 'Guidelines', 'Reports', 'Forms'],
+                    datasets: [{
+                        data: [35, 25, 20, 15, 5],
+                        backgroundColor: ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+
+            // Monthly Chart
+            const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+            new Chart(monthlyCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                    datasets: [{
+                        label: 'Documents Found',
+                        data: [120, 190, 300, 500, 200, 300],
+                        borderColor: '#3B82F6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+        // Add this function to documents.html
+        async function loadDocumentFiles() {
+            try {
+                const response = await fetch('/api/database/files');
+                const data = await response.json();
+        
+                if (data.success) {
+                    const documentsList = document.getElementById('documentsList');
+                    if (documentsList) {
+                        const allFiles = [...data.database_files, ...data.document_files];
+                
+                        documentsList.innerHTML = `
+                            <div class="space-y-4">
+                                ${allFiles.map(file => `
+                                    <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center">
+                                                <i class="fas ${getFileIcon(file.extension)} text-gray-600 mr-3"></i>
+                                                <div>
+                                                    <h4 class="font-medium text-gray-900">${file.filename}</h4>
+                                                    <p class="text-sm text-gray-500">${file.category}</p>
+                                                    <p class="text-xs text-gray-400">
+                                                        ${formatFileSize(file.size)} • ${formatDate(file.modified)}
+                                                        ${file.table_count ? ` • ${file.table_count} tables` : ''}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div class="flex space-x-2">
+                                              <button onclick="viewFile('${file.filename}')" 
+                                                      class="text-blue-600 hover:text-blue-800">
+                                                   <i class="fas fa-eye"></i>
+                                                </button>
+                                               <a href="/api/dashboard-ai/download/${file.filename}" 
+                                                 class="text-green-600 hover:text-green-800">
+                                                    <i class="fas fa-download"></i>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                              `).join('')}
+                            </div>
+                        `;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading document files:', error);
+            }
+        }
+        // Add this to the documents page initialization
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDocumentCharts();
+            loadDocumentFiles(); // Add this line
+        });
+
+    </script>
+</body>
+</html>

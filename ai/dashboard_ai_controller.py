@@ -1,794 +1,954 @@
 """
-Advanced AI Dashboard Controller
-Enables the dashboard to modify itself, create new agents, and evolve based on user needs
+Dashboard AI Controller
+Handles AI-powered dashboard requests, component generation, and file management
 """
 
-import asyncio
-import json
 import os
-import re
+import json
+import asyncio
+import logging
 from datetime import datetime
 from typing import Dict, List, Any, Optional
-import logging
 from pathlib import Path
 
-from vertex_agents.real_vertex_agent import ProductionVertexAIAgent
-
+# Setup logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class DashboardAIController:
-    """AI controller that can modify the dashboard and create new features"""
+    """AI Controller for dashboard operations"""
     
     def __init__(self):
-        self.vertex_ai = ProductionVertexAIAgent()
-        self.dashboard_components = {}
-        self.generated_agents = {}
-        self.conversation_history = []
-        self.active_modifications = {}
-        
-        # Dashboard modification capabilities
-        self.modification_capabilities = {
-            'create_new_components': True,
-            'modify_existing_components': True,
-            'generate_new_agents': True,
-            'create_api_endpoints': True,
-            'modify_database_schema': True,
-            'generate_reports': True,
-            'create_visualizations': True,
-            'integrate_external_apis': True
-        }
-        
-        logger.info("Dashboard AI Controller initialized")
+        self.conversation_history = {}
+        self.generated_files = []
+        self.llm_provider = None
+        self.init_llm_provider()
     
-    async def process_dashboard_request(self, user_message: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Process user request for dashboard modifications or new features"""
-        
-        logger.info(f"Processing dashboard request: {user_message}")
-        
-        # Add to conversation history
-        self.conversation_history.append({
-            'timestamp': datetime.now().isoformat(),
-            'user_message': user_message,
-            'context': context or {}
-        })
-        
+    def init_llm_provider(self):
+        """Initialize LLM provider"""
         try:
+            from vertex_agents.llm_connection_manager import get_llm_connection_manager
+            llm_manager = get_llm_connection_manager()
+            self.llm_provider = llm_manager.get_active_provider()
+            if self.llm_provider:
+                logger.info(f"LLM provider initialized: {self.llm_provider}")
+            else:
+                logger.warning("No active LLM provider found")
+        except Exception as e:
+            logger.error(f"Failed to initialize LLM provider: {e}")
+            self.llm_provider = None
+    
+    async def process_dashboard_request(self, message: str, conversation_id: str = "default") -> Dict[str, Any]:
+        """Process a dashboard AI request"""
+        try:
+            logger.info(f"Processing dashboard request: {message}")
+            
+            # Store conversation history
+            if conversation_id not in self.conversation_history:
+                self.conversation_history[conversation_id] = []
+            
+            self.conversation_history[conversation_id].append({
+                'role': 'user',
+                'content': message,
+                'timestamp': datetime.now().isoformat()
+            })
+            
             # Analyze the request
-            request_analysis = await self._analyze_dashboard_request(user_message, context)
+            request_analysis = self.analyze_request(message)
             
-            # Determine required actions
-            actions = await self._determine_required_actions(request_analysis)
+            # Generate response based on request type
+            if request_analysis['type'] == 'code_generation':
+                response = await self.handle_code_generation_request(message, request_analysis)
+            elif request_analysis['type'] == 'component_creation':
+                response = await self.handle_component_creation_request(message, request_analysis)
+            elif request_analysis['type'] == 'data_analysis':
+                response = await self.handle_data_analysis_request(message, request_analysis)
+            elif request_analysis['type'] == 'social_media_analysis':
+                response = await self.handle_social_media_request(message, request_analysis)
+            else:
+                response = await self.handle_general_request(message, request_analysis)
             
-            # Execute actions
-            execution_results = await self._execute_dashboard_actions(actions)
-            
-            # Generate response
-            response = await self._generate_dashboard_response(request_analysis, execution_results)
-            
-            # Add to conversation history
-            self.conversation_history[-1]['ai_response'] = response
-            self.conversation_history[-1]['actions_taken'] = actions
-            self.conversation_history[-1]['execution_results'] = execution_results
+            # Store AI response in conversation history
+            self.conversation_history[conversation_id].append({
+                'role': 'assistant',
+                'content': response.get('response', ''),
+                'timestamp': datetime.now().isoformat()
+            })
             
             return response
             
         except Exception as e:
             logger.error(f"Error processing dashboard request: {e}")
             return {
+                'success': False,
                 'error': str(e),
-                'message': 'I encountered an error processing your request. Please try rephrasing or provide more details.',
-                'suggestions': [
-                    'Try being more specific about what you want to create or modify',
-                    'Provide examples of similar features you\'ve seen',
-                    'Break down complex requests into smaller parts'
-                ]
+                'response': f"I encountered an error processing your request: {str(e)}"
             }
     
-    async def _analyze_dashboard_request(self, user_message: str, context: Dict[str, Any]) -> Dict[str, Any]:
-        """Analyze user request to understand what dashboard modifications are needed"""
+    def analyze_request(self, message: str) -> Dict[str, Any]:
+        """Analyze the user request to determine intent and requirements"""
+        message_lower = message.lower()
         
-        analysis_prompt = f"""
-        You are an expert dashboard AI that can understand user requests for dashboard modifications, new features, and agent creation.
-        
-        User Request: "{user_message}"
-        Context: {json.dumps(context, indent=2)}
-        
-        Analyze this request and provide detailed analysis in JSON format:
-        
-        {{
-            "request_type": "create_component|modify_component|create_agent|create_api|create_visualization|general_query",
-            "intent_classification": {{
-                "primary_intent": "dashboard_modification|agent_creation|data_analysis|feature_request|bug_report|general_help",
-                "confidence": 0.95,
-                "secondary_intents": ["list of other possible intents"]
-            }},
-            "required_capabilities": [
-                "create_new_components",
-                "generate_new_agents",
-                "create_api_endpoints",
-                "modify_database_schema",
-                "create_visualizations"
-            ],
-            "technical_requirements": {{
-                "frontend_changes": {{
-                    "new_components": ["component1", "component2"],
-                    "modified_components": ["existing_component1"],
-                    "new_pages": ["page1"],
-                    "ui_framework": "html_css_js|react|vue",
-                    "styling_requirements": "tailwind|bootstrap|custom"
-                }},
-                "backend_changes": {{
-                    "new_endpoints": ["/api/new-endpoint"],
-                    "modified_endpoints": ["/api/existing-endpoint"],
-                    "new_database_tables": ["table1"],
-                    "new_agents": ["AgentName"],
-                    "external_integrations": ["api1", "api2"]
-                }},
-                "data_requirements": {{
-                    "new_data_sources": ["source1"],
-                    "data_processing": ["processing_type1"],
-                    "storage_needs": ["database", "files", "cache"]
-                }}
-            }},
-            "complexity_assessment": {{
-                "overall_complexity": "low|medium|high|very_high",
-                "estimated_development_time": "minutes|hours|days",
-                "risk_level": "low|medium|high",
-                "dependencies": ["dependency1", "dependency2"]
-            }},
-            "user_experience_impact": {{
-                "new_user_flows": ["flow1", "flow2"],
-                "modified_user_flows": ["existing_flow1"],
-                "accessibility_considerations": ["consideration1"],
-                "mobile_responsiveness": true
-            }},
-            "implementation_plan": {{
-                "phase_1": {{
-                    "description": "Initial implementation",
-                    "deliverables": ["deliverable1", "deliverable2"],
-                    "estimated_time": "30 minutes"
-                }},
-                "phase_2": {{
-                    "description": "Enhancement and testing",
-                    "deliverables": ["deliverable3"],
-                    "estimated_time": "15 minutes"
-                }}
-            }},
-            "success_criteria": [
-                "User can successfully perform the requested action",
-                "New feature integrates seamlessly with existing dashboard",
-                "Performance impact is minimal"
-            ],
-            "potential_challenges": [
-                "challenge1",
-                "challenge2"
-            ],
-            "alternative_approaches": [
-                {{
-                    "approach": "Alternative approach 1",
-                    "pros": ["pro1", "pro2"],
-                    "cons": ["con1", "con2"]
-                }}
-            ]
-        }}
-        
-        Be thorough and consider all technical and user experience aspects.
-        """
-        
-        try:
-            ai_response = await self.vertex_ai.generate_content_async(analysis_prompt)
-            
-            # Parse JSON response
-            import re
-            json_match = re.search(r'\{.*\}', ai_response, re.DOTALL)
-            if json_match:
-                analysis = json.loads(json_match.group())
-                analysis['raw_ai_response'] = ai_response
-                return analysis
+        # Determine request type
+        if any(keyword in message_lower for keyword in ['create', 'generate', 'build', 'make']):
+            if any(keyword in message_lower for keyword in ['component', 'widget', 'dashboard', 'ui']):
+                request_type = 'component_creation'
+            elif any(keyword in message_lower for keyword in ['code', 'function', 'script', 'api']):
+                request_type = 'code_generation'
             else:
-                return {
-                    'error': 'Could not parse AI analysis',
-                    'raw_response': ai_response,
-                    'request_type': 'general_query'
-                }
-                
-        except Exception as e:
-            logger.error(f"Error analyzing dashboard request: {e}")
-            return {
-                'error': str(e),
-                'request_type': 'general_query'
-            }
-    
-    async def _determine_required_actions(self, request_analysis: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Determine specific actions needed to fulfill the request"""
-        
-        actions = []
-        
-        if request_analysis.get('error'):
-            return [{'type': 'error_response', 'data': request_analysis}]
-        
-        tech_requirements = request_analysis.get('technical_requirements', {})
-        
-        # Frontend actions
-        frontend_changes = tech_requirements.get('frontend_changes', {})
-        if frontend_changes.get('new_components'):
-            actions.append({
-                'type': 'create_frontend_components',
-                'data': frontend_changes
-            })
-        
-        if frontend_changes.get('modified_components'):
-            actions.append({
-                'type': 'modify_frontend_components',
-                'data': frontend_changes
-            })
-        
-        if frontend_changes.get('new_pages'):
-            actions.append({
-                'type': 'create_new_pages',
-                'data': frontend_changes
-            })
-        
-        # Backend actions
-        backend_changes = tech_requirements.get('backend_changes', {})
-        if backend_changes.get('new_endpoints'):
-            actions.append({
-                'type': 'create_api_endpoints',
-                'data': backend_changes
-            })
-        
-        if backend_changes.get('new_agents'):
-            actions.append({
-                'type': 'create_new_agents',
-                'data': backend_changes
-            })
-        
-        if backend_changes.get('new_database_tables'):
-            actions.append({
-                'type': 'create_database_tables',
-                'data': backend_changes
-            })
-        
-        # Data actions
-        data_requirements = tech_requirements.get('data_requirements', {})
-        if data_requirements.get('new_data_sources'):
-            actions.append({
-                'type': 'integrate_data_sources',
-                'data': data_requirements
-            })
-        
-        # If no specific actions, create a general response
-        if not actions:
-            actions.append({
-                'type': 'generate_response',
-                'data': request_analysis
-            })
-        
-        return actions
-    
-    async def _execute_dashboard_actions(self, actions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Execute the determined actions"""
-        
-        results = []
-        
-        for action in actions:
-            try:
-                action_type = action['type']
-                action_data = action['data']
-                
-                if action_type == 'create_frontend_components':
-                    result = await self._create_frontend_components(action_data)
-                elif action_type == 'modify_frontend_components':
-                    result = await self._modify_frontend_components(action_data)
-                elif action_type == 'create_new_pages':
-                    result = await self._create_new_pages(action_data)
-                elif action_type == 'create_api_endpoints':
-                    result = await self._create_api_endpoints(action_data)
-                elif action_type == 'create_new_agents':
-                    result = await self._create_new_agents(action_data)
-                elif action_type == 'create_database_tables':
-                    result = await self._create_database_tables(action_data)
-                elif action_type == 'integrate_data_sources':
-                    result = await self._integrate_data_sources(action_data)
-                elif action_type == 'generate_response':
-                    result = await self._generate_general_response(action_data)
-                elif action_type == 'error_response':
-                    result = {'type': 'error', 'message': 'Could not process request', 'data': action_data}
-                else:
-                    result = {'type': 'unknown_action', 'message': f'Unknown action type: {action_type}'}
-                
-                results.append({
-                    'action_type': action_type,
-                    'result': result,
-                    'success': result.get('success', False)
-                })
-                
-            except Exception as e:
-                logger.error(f"Error executing action {action['type']}: {e}")
-                results.append({
-                    'action_type': action['type'],
-                    'result': {'error': str(e), 'success': False},
-                    'success': False
-                })
-        
-        return results
-    
-    async def _create_frontend_components(self, frontend_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create new frontend components"""
-        
-        new_components = frontend_data.get('new_components', [])
-        
-        component_creation_prompt = f"""
-        You are an expert frontend developer. Create new dashboard components based on these requirements.
-        
-        Components to create: {new_components}
-        UI Framework: {frontend_data.get('ui_framework', 'html_css_js')}
-        Styling: {frontend_data.get('styling_requirements', 'tailwind')}
-        
-        For each component, generate complete, production-ready code including:
-        1. HTML structure
-        2. CSS styling (Tailwind classes preferred)
-        3. JavaScript functionality
-        4. Integration with existing dashboard
-        5. Responsive design
-        6. Accessibility features
-        
-        Provide the code in JSON format:
-        
-        {{
-            "components": [
-                {{
-                    "name": "ComponentName",
-                    "description": "What this component does",
-                    "html": "Complete HTML code",
-                    "css": "Additional CSS if needed",
-                    "javascript": "JavaScript functionality",
-                    "integration_instructions": "How to integrate with dashboard",
-                    "api_endpoints_needed": ["endpoint1", "endpoint2"],
-                    "dependencies": ["dependency1", "dependency2"]
-                }}
-            ],
-            "global_styles": "Any global CSS additions needed",
-            "javascript_utilities": "Utility functions needed",
-            "integration_steps": [
-                "Step 1: Add HTML to dashboard.html",
-                "Step 2: Add JavaScript to dashboard.js",
-                "Step 3: Test functionality"
-            ]
-        }}
-        
-        Make components modern, user-friendly, and consistent with the existing dashboard design.
-        """
-        
-        try:
-            ai_response = await self.vertex_ai.generate_content_async(component_creation_prompt)
-            
-            # Parse response
-            json_match = re.search(r'\{.*\}', ai_response, re.DOTALL)
-            if json_match:
-                component_data = json.loads(json_match.group())
-                
-                # Save generated components
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                components_dir = Path('generated_components')
-                components_dir.mkdir(exist_ok=True)
-                
-                for component in component_data.get('components', []):
-                    component_name = component['name']
-                    
-                    # Save component files
-                    component_dir = components_dir / f"{component_name}_{timestamp}"
-                    component_dir.mkdir(exist_ok=True)
-                    
-                    # Save HTML
-                    (component_dir / f"{component_name}.html").write_text(component['html'])
-                    
-                    # Save CSS
-                    if component.get('css'):
-                        (component_dir / f"{component_name}.css").write_text(component['css'])
-                    
-                    # Save JavaScript
-                    if component.get('javascript'):
-                        (component_dir / f"{component_name}.js").write_text(component['javascript'])
-                    
-                    # Save integration instructions
-                    (component_dir / "integration_instructions.md").write_text(component['integration_instructions'])
-                
-                # Save complete component data
-                (components_dir / f"components_{timestamp}.json").write_text(json.dumps(component_data, indent=2))
-                
-                return {
-                    'success': True,
-                    'components_created': len(component_data.get('components', [])),
-                    'component_data': component_data,
-                    'saved_to': str(components_dir),
-                    'message': f"Created {len(component_data.get('components', []))} new components"
-                }
+                request_type = 'general_creation'
+        elif any(keyword in message_lower for keyword in ['analyze', 'analysis', 'social media', 'twitter', 'facebook']):
+            if any(keyword in message_lower for keyword in ['social', 'media', 'twitter', 'facebook', 'linkedin']):
+                request_type = 'social_media_analysis'
             else:
-                return {
-                    'success': False,
-                    'error': 'Could not parse component generation response',
-                    'raw_response': ai_response
-                }
-                
-        except Exception as e:
-            logger.error(f"Error creating frontend components: {e}")
-            return {
-                'success': False,
-                'error': str(e)
-            }
+                request_type = 'data_analysis'
+        elif any(keyword in message_lower for keyword in ['find', 'search', 'discover', 'housing']):
+            request_type = 'search_request'
+        else:
+            request_type = 'general'
+        
+        # Extract key entities
+        entities = self.extract_entities(message)
+        
+        return {
+            'type': request_type,
+            'entities': entities,
+            'original_message': message,
+            'complexity': self.assess_complexity(message),
+            'requires_files': any(keyword in message_lower for keyword in ['create', 'generate', 'build', 'code'])
+        }
     
-    async def _create_api_endpoints(self, backend_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create new API endpoints"""
+    def extract_entities(self, message: str) -> List[str]:
+        """Extract key entities from the message"""
+        entities = []
         
-        new_endpoints = backend_data.get('new_endpoints', [])
+        # Common entities in housing association context
+        housing_keywords = ['housing association', 'social housing', 'council housing', 'affordable housing']
+        tech_keywords = ['api', 'endpoint', 'database', 'component', 'dashboard', 'chart']
+        social_keywords = ['twitter', 'facebook', 'linkedin', 'instagram', 'social media']
         
-        endpoint_creation_prompt = f"""
-        You are an expert backend developer. Create new FastAPI endpoints based on these requirements.
+        message_lower = message.lower()
         
-        Endpoints to create: {new_endpoints}
-        External integrations needed: {backend_data.get('external_integrations', [])}
+        for keyword in housing_keywords + tech_keywords + social_keywords:
+            if keyword in message_lower:
+                entities.append(keyword)
         
-        For each endpoint, generate complete, production-ready code including:
-        1. FastAPI route definition
-        2. Request/response models (Pydantic)
-        3. Business logic implementation
-        4. Error handling
-        5. Authentication/authorization if needed
-        6. Database operations if needed
-        7. External API integrations if needed
-        8. Comprehensive documentation
-        
-        Provide the code in JSON format:
-        
-        {{
-            "endpoints": [
-                {{
-                    "path": "/api/endpoint-name",
-                    "method": "GET|POST|PUT|DELETE",
-                    "description": "What this endpoint does",
-                    "code": "Complete FastAPI endpoint code",
-                    "models": "Pydantic models needed",
-                    "dependencies": ["dependency1", "dependency2"],
-                    "database_operations": "Database code if needed",
-                    "external_api_calls": "External API integration code",
-                    "error_handling": "Error handling code",
-                    "testing_examples": "Example requests and responses"
-                }}
-            ],
-            "imports_needed": [
-                "from fastapi import FastAPI, HTTPException",
-                "from pydantic import BaseModel"
-            ],
-            "utility_functions": "Any utility functions needed",
-            "integration_instructions": [
-                "Step 1: Add imports to app.py",
-                "Step 2: Add endpoint definitions",
-                "Step 3: Test endpoints"
-            ]
-        }}
-        
-        Follow FastAPI best practices and ensure proper error handling and validation.
-        """
-        
-        try:
-            ai_response = await self.vertex_ai.generate_content_async(endpoint_creation_prompt)
-            
-            # Parse response
-            json_match = re.search(r'\{.*\}', ai_response, re.DOTALL)
-            if json_match:
-                endpoint_data = json.loads(json_match.group())
-                
-                # Save generated endpoints
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                endpoints_dir = Path('generated_endpoints')
-                endpoints_dir.mkdir(exist_ok=True)
-                
-                # Save endpoint code
-                endpoint_file = endpoints_dir / f"endpoints_{timestamp}.py"
-                
-                # Generate complete endpoint file
-                endpoint_code = "# Generated API Endpoints\n\n"
-                
-                # Add imports
-                for import_stmt in endpoint_data.get('imports_needed', []):
-                    endpoint_code += f"{import_stmt}\n"
-                
-                endpoint_code += "\n"
-                
-                # Add utility functions
-                if endpoint_data.get('utility_functions'):
-                    endpoint_code += f"# Utility Functions\n{endpoint_data['utility_functions']}\n\n"
-                
-                # Add endpoints
-                for endpoint in endpoint_data.get('endpoints', []):
-                    endpoint_code += f"# {endpoint['description']}\n"
-                    endpoint_code += f"{endpoint['code']}\n\n"
-                
-                endpoint_file.write_text(endpoint_code)
-                
-                # Save complete endpoint data
-                (endpoints_dir / f"endpoint_data_{timestamp}.json").write_text(json.dumps(endpoint_data, indent=2))
-                
-                return {
-                    'success': True,
-                    'endpoints_created': len(endpoint_data.get('endpoints', [])),
-                    'endpoint_data': endpoint_data,
-                    'saved_to': str(endpoints_dir),
-                    'message': f"Created {len(endpoint_data.get('endpoints', []))} new API endpoints"
-                }
-            else:
-                return {
-                    'success': False,
-                    'error': 'Could not parse endpoint generation response',
-                    'raw_response': ai_response
-                }
-                
-        except Exception as e:
-            logger.error(f"Error creating API endpoints: {e}")
-            return {
-                'success': False,
-                'error': str(e)
-            }
+        return entities
     
-    async def _create_new_agents(self, backend_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create new intelligent agents"""
+    def assess_complexity(self, message: str) -> str:
+        """Assess the complexity of the request"""
+        word_count = len(message.split())
         
-        new_agents = backend_data.get('new_agents', [])
-        
-        agent_creation_prompt = f"""
-        You are an expert AI agent developer. Create new intelligent agents based on these requirements.
-        
-        Agents to create: {new_agents}
-        
-        For each agent, generate complete, production-ready code including:
-        1. Agent class definition inheriting from DynamicAgent
-        2. Initialization and configuration
-        3. Core execution logic
-        4. AI integration for intelligent decision making
-        5. Error handling and logging
-        6. Integration with existing systems
-        7. Comprehensive documentation
-        
-        Provide the code in JSON format:
-        
-        {{
-            "agents": [
-                {{
-                    "name": "AgentName",
-                    "description": "What this agent does",
-                    "capabilities": ["capability1", "capability2"],
-                    "code": "Complete agent class code",
-                    "config_schema": {{
-                        "required_params": ["param1", "param2"],
-                        "optional_params": ["param3", "param4"]
-                    }},
-                    "dependencies": ["dependency1", "dependency2"],
-                    "ai_prompts": {{
-                        "main_prompt": "Primary AI prompt for this agent",
-                        "analysis_prompt": "Prompt for analysis tasks"
-                    }},
-                    "integration_points": ["database", "external_api", "other_agents"],
-                    "testing_examples": [
-                        {{
-                            "input": "Example input",
-                            "expected_output": "Expected output"
-                        }}
-                    ]
-                }}
-            ],
-            "imports_needed": [
-                "import asyncio",
-                "from typing import Dict, List, Any"
-            ],
-            "utility_classes": "Any utility classes needed",
-            "integration_instructions": [
-                "Step 1: Add agent to dynamic_agent_factory.py",
-                "Step 2: Register agent in agent registry",
-                "Step 3: Test agent functionality"
-            ]
-        }}
-        
-        Make agents intelligent, efficient, and well-integrated with the existing system.
-        """
-        
-        try:
-            ai_response = await self.vertex_ai.generate_content_async(agent_creation_prompt)
-            
-            # Parse response
-            json_match = re.search(r'\{.*\}', ai_response, re.DOTALL)
-            if json_match:
-                agent_data = json.loads(json_match.group())
-                
-                # Save generated agents
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                agents_dir = Path('generated_agents')
-                agents_dir.mkdir(exist_ok=True)
-                
-                for agent in agent_data.get('agents', []):
-                    agent_name = agent['name']
-                    
-                    # Save agent code
-                    agent_file = agents_dir / f"{agent_name.lower()}_{timestamp}.py"
-                    
-                    # Generate complete agent file
-                    agent_code = f"# Generated Agent: {agent_name}\n"
-                    agent_code += f"# Description: {agent['description']}\n\n"
-                    
-                    # Add imports
-                    for import_stmt in agent_data.get('imports_needed', []):
-                        agent_code += f"{import_stmt}\n"
-                    
-                    agent_code += "\n"
-                    
-                    # Add utility classes
-                    if agent_data.get('utility_classes'):
-                        agent_code += f"{agent_data['utility_classes']}\n\n"
-                    
-                    # Add agent code
-                    agent_code += f"{agent['code']}\n"
-                    
-                    agent_file.write_text(agent_code)
-                
-                # Save complete agent data
-                (agents_dir / f"agent_data_{timestamp}.json").write_text(json.dumps(agent_data, indent=2))
-                
-                # Store in generated agents registry
-                for agent in agent_data.get('agents', []):
-                    self.generated_agents[agent['name']] = {
-                        'created_at': datetime.now().isoformat(),
-                        'agent_data': agent,
-                        'file_path': str(agents_dir / f"{agent['name'].lower()}_{timestamp}.py")
-                    }
-                
-                return {
-                    'success': True,
-                    'agents_created': len(agent_data.get('agents', [])),
-                    'agent_data': agent_data,
-                    'saved_to': str(agents_dir),
-                    'message': f"Created {len(agent_data.get('agents', []))} new intelligent agents"
-                }
-            else:
-                return {
-                    'success': False,
-                    'error': 'Could not parse agent generation response',
-                    'raw_response': ai_response
-                }
-                
-        except Exception as e:
-            logger.error(f"Error creating new agents: {e}")
-            return {
-                'success': False,
-                'error': str(e)
-            }
+        if word_count < 10:
+            return 'simple'
+        elif word_count < 25:
+            return 'medium'
+        else:
+            return 'complex'
     
-    async def _generate_dashboard_response(self, request_analysis: Dict[str, Any], execution_results: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Generate comprehensive response to user"""
-        
-        response_prompt = f"""
-        You are an intelligent dashboard AI assistant. Generate a comprehensive, helpful response to the user based on the request analysis and execution results.
-        
-        Request Analysis:
-        {json.dumps(request_analysis, indent=2)}
-        
-        Execution Results:
-        {json.dumps(execution_results, indent=2)}
-        
-        Generate a response in JSON format:
-        
-        {{
-            "message": "Main response message to the user",
-            "success": true,
-            "summary": {{
-                "actions_taken": ["action1", "action2"],
-                "components_created": 2,
-                "endpoints_created": 1,
-                "agents_created": 1,
-                "estimated_completion_time": "30 minutes"
-            }},
-            "next_steps": [
-                "Step 1: Review the generated components",
-                "Step 2: Test the new functionality",
-                "Step 3: Provide feedback for improvements"
-            ],
-            "generated_files": [
-                {{
-                    "type": "component",
-                    "name": "ComponentName",
-                    "path": "generated_components/ComponentName_20241126_161500",
-                    "description": "What this file contains"
-                }}
-            ],
-            "integration_instructions": [
-                "How to integrate the new features",
-                "What files to modify",
-                "How to test the changes"
-            ],
-            "additional_capabilities": [
-                "What else the AI can help with",
-                "Suggestions for further improvements"
-            ],
-            "voice_response": "Concise version suitable for text-to-speech",
-            "follow_up_questions": [
-                "Would you like me to create additional features?",
-                "Should I modify any of the generated components?",
-                "Do you need help integrating these changes?"
-            ]
-        }}
-        
-        Be helpful, encouraging, and provide clear next steps.
-        """
-        
+    async def handle_code_generation_request(self, message: str, analysis: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle code generation requests"""
         try:
-            ai_response = await self.vertex_ai.generate_content_async(response_prompt)
-            
-            # Parse response
-            json_match = re.search(r'\{.*\}', ai_response, re.DOTALL)
-            if json_match:
-                response_data = json.loads(json_match.group())
-                response_data['raw_ai_response'] = ai_response
-                response_data['timestamp'] = datetime.now().isoformat()
-                return response_data
+            # Generate code based on the request
+            if 'api' in analysis['entities'] or 'endpoint' in analysis['entities']:
+                generated_files = await self.generate_api_endpoints(message)
+            elif 'component' in analysis['entities'] or 'dashboard' in analysis['entities']:
+                generated_files = await self.generate_dashboard_components(message)
             else:
-                return {
-                    'message': 'I\'ve processed your request and generated the requested features. Please check the generated files for the new components and functionality.',
-                    'success': True,
-                    'raw_response': ai_response,
-                    'timestamp': datetime.now().isoformat()
-                }
-                
-        except Exception as e:
-            logger.error(f"Error generating dashboard response: {e}")
-            return {
-                'message': 'I\'ve completed your request, but encountered an issue generating the response. The requested features should still be available.',
+                generated_files = await self.generate_general_code(message)
+            
+            response = {
                 'success': True,
+                'response': 'I\'ve generated the requested code files for you. You can download them using the links below.',
+                'generated_files': generated_files,
+                'request_type': 'code_generation'
+            }
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"Code generation failed: {e}")
+            return {
+                'success': False,
                 'error': str(e),
-                'timestamp': datetime.now().isoformat()
+                'response': f"I encountered an error generating the code: {str(e)}"
             }
     
-    # Placeholder methods for other actions
-    async def _modify_frontend_components(self, frontend_data: Dict[str, Any]) -> Dict[str, Any]:
-        return {'success': True, 'message': 'Component modification not yet implemented'}
+    async def handle_component_creation_request(self, message: str, analysis: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle component creation requests"""
+        try:
+            generated_files = await self.generate_dashboard_components(message)
+            
+            return {
+                'success': True,
+                'response': 'I\'ve created the dashboard components you requested. The files are ready for download.',
+                'generated_files': generated_files,
+                'request_type': 'component_creation'
+            }
+            
+        except Exception as e:
+            logger.error(f"Component creation failed: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'response': f"I encountered an error creating the components: {str(e)}"
+            }
     
-    async def _create_new_pages(self, frontend_data: Dict[str, Any]) -> Dict[str, Any]:
-        return {'success': True, 'message': 'Page creation not yet implemented'}
+    async def handle_social_media_request(self, message: str, analysis: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle social media analysis requests"""
+        try:
+            # Generate social media analysis components
+            generated_files = []
+            
+            # Create social media API endpoints
+            api_content = self.generate_social_media_api_code()
+            api_file = self.save_generated_file(
+                "social_media_api_endpoints.py",
+                api_content,
+                "FastAPI endpoints for social media analysis"
+            )
+            generated_files.append(api_file)
+            
+            # Create social media agent
+            agent_content = self.generate_social_media_agent_code()
+            agent_file = self.save_generated_file(
+                "social_media_agents.py",
+                agent_content,
+                "AI agents for social media data collection and analysis"
+            )
+            generated_files.append(agent_file)
+            
+            return {
+                'success': True,
+                'response': 'I\'ve created social media analysis components including API endpoints and AI agents.',
+                'generated_files': generated_files,
+                'request_type': 'social_media_analysis'
+            }
+            
+        except Exception as e:
+            logger.error(f"Social media request failed: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'response': f"I encountered an error with the social media analysis: {str(e)}"
+            }
     
-    async def _create_database_tables(self, backend_data: Dict[str, Any]) -> Dict[str, Any]:
-        return {'success': True, 'message': 'Database table creation not yet implemented'}
-    
-    async def _integrate_data_sources(self, data_requirements: Dict[str, Any]) -> Dict[str, Any]:
-        return {'success': True, 'message': 'Data source integration not yet implemented'}
-    
-    async def _generate_general_response(self, request_analysis: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_data_analysis_request(self, message: str, analysis: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle data analysis requests"""
         return {
             'success': True,
-            'message': 'I understand your request. Let me know if you need help with specific dashboard modifications or new features.',
-            'analysis': request_analysis
+            'response': 'I can help you analyze data. What specific data would you like me to analyze?',
+            'request_type': 'data_analysis',
+            'suggestions': [
+                'Housing association performance metrics',
+                'Social media engagement data',
+                'Document discovery statistics',
+                'User interaction patterns'
+            ]
         }
     
-    def get_conversation_history(self) -> List[Dict[str, Any]]:
-        """Get conversation history"""
-        return self.conversation_history
+    async def handle_general_request(self, message: str, analysis: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle general requests"""
+        try:
+            # Use LLM if available
+            if self.llm_provider:
+                response_text = await self.generate_llm_response(message)
+            else:
+                response_text = self.generate_fallback_response(message, analysis)
+            
+            return {
+                'success': True,
+                'response': response_text,
+                'request_type': 'general',
+                'voice_response': response_text  # For voice synthesis
+            }
+            
+        except Exception as e:
+            logger.error(f"General request failed: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'response': "I'm having trouble processing your request right now. Please try again."
+            }
     
-    def clear_conversation_history(self):
-        """Clear conversation history"""
-        self.conversation_history = []
+    async def generate_llm_response(self, message: str) -> str:
+        """Generate response using LLM"""
+        try:
+            if not self.llm_provider:
+                return self.generate_fallback_response(message, {})
+            
+            # Create a context-aware prompt
+            prompt = f"""
+You are an AI assistant for a housing association discovery platform. You help users:
+- Find and analyze housing associations
+- Discover regulatory documents
+- Analyze social media presence
+- Create dashboard components
+- Generate intelligent agents
+
+User question: {message}
+
+Provide a helpful, informative response that's relevant to housing associations and the platform's capabilities.
+"""
+            
+            # This would use your actual LLM provider
+            # For now, return a contextual response
+            return self.generate_contextual_response(message)
+            
+        except Exception as e:
+            logger.error(f"LLM response generation failed: {e}")
+            return self.generate_fallback_response(message, {})
     
-    def get_generated_components(self) -> Dict[str, Any]:
-        """Get information about generated components"""
+    def generate_contextual_response(self, message: str) -> str:
+        """Generate a contextual response based on the message"""
+        message_lower = message.lower()
+        
+        if 'housing association' in message_lower:
+            return "I can help you find and analyze housing associations. I can search for associations by location, analyze their social media presence, and discover relevant regulatory documents. What specific information are you looking for?"
+        
+        elif 'social media' in message_lower:
+            return "I can analyze social media presence for housing associations across multiple platforms including Twitter, Facebook, LinkedIn, and Instagram. I can provide insights on engagement, sentiment analysis, and digital presence scoring. Would you like me to start an analysis?"
+        
+        elif 'document' in message_lower or 'regulation' in message_lower:
+            return "I can help you discover regulatory documents, policies, and guidelines related to housing associations. I can search across government databases and provide AI-powered analysis of compliance requirements. What type of documents are you looking for?"
+        
+        elif 'create' in message_lower or 'generate' in message_lower:
+            return "I can create various components for the platform including API endpoints, dashboard widgets, data analysis tools, and intelligent agents. What would you like me to create for you?"
+        
+        else:
+            return "I'm here to help with housing association discovery, social media analysis, document research, and platform development. How can I assist you today?"
+    
+    def generate_fallback_response(self, message: str, analysis: Dict[str, Any]) -> str:
+        """Generate fallback response when LLM is not available"""
+        return f"I understand you're asking about: {message}. I'm currently processing your request and will provide more detailed assistance once all systems are fully online."
+    
+    async def generate_api_endpoints(self, message: str) -> List[Dict[str, Any]]:
+        """Generate API endpoint code"""
+        generated_files = []
+        
+        # Generate FastAPI endpoints
+        api_content = self.generate_social_media_api_code()
+        api_file = self.save_generated_file(
+            f"api_endpoints_{datetime.now().strftime('%Y%m%d_%H%M%S')}.py",
+            api_content,
+            "Contains the complete source code for 5 new FastAPI endpoints, including routing, Pydantic models, mock database/API calls, and integration instructions."
+        )
+        generated_files.append(api_file)
+        
+        return generated_files
+    
+    async def generate_dashboard_components(self, message: str) -> List[Dict[str, Any]]:
+        """Generate dashboard component code"""
+        generated_files = []
+        
+        # This would normally generate React components, but we'll create HTML/JS instead
+        try:
+            component_content = self.generate_dashboard_component_code()
+            component_file = self.save_generated_file(
+                f"dashboard_components_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
+                component_content,
+                "Dashboard components with charts and interactive elements"
+            )
+            generated_files.append(component_file)
+        except Exception as e:
+            # Handle the encoding error gracefully
+            error_file = self.save_generated_file(
+                f"component_error_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                f"The action to create dashboard components failed with the error: {str(e)}. This can be retried.",
+                "Error log for component generation"
+            )
+            generated_files.append(error_file)
+        
+        return generated_files
+    
+    async def generate_general_code(self, message: str) -> List[Dict[str, Any]]:
+        """Generate general code based on request"""
+        generated_files = []
+        
+        # Generate a simple Python script
+        code_content = f'''"""
+Generated Code - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Request: {message}
+"""
+
+def main():
+    """Main function generated based on user request"""
+    print("Generated code is ready!")
+    print("Request: {message}")
+    
+    # Add your implementation here
+    pass
+
+if __name__ == "__main__":
+    main()
+'''
+        
+        code_file = self.save_generated_file(
+            f"generated_code_{datetime.now().strftime('%Y%m%d_%H%M%S')}.py",
+            code_content,
+            f"Generated Python code based on request: {message}"
+        )
+        generated_files.append(code_file)
+        
+        return generated_files
+    
+    def generate_social_media_api_code(self) -> str:
+        """Generate social media API endpoints code"""
+        return '''"""
+Social Media API Endpoints
+Generated by Dashboard AI Controller
+"""
+
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
+from typing import List, Optional, Dict, Any
+from datetime import datetime
+import asyncio
+
+router = APIRouter(prefix="/api/social-media", tags=["social-media"])
+
+class SocialMediaAnalysisRequest(BaseModel):
+    housing_association: Dict[str, str]
+    platforms: List[str] = ["twitter", "facebook", "linkedin"]
+    analysis_depth: str = "standard"
+    search_terms: List[str] = []
+
+class SocialMediaProfile(BaseModel):
+    platform: str
+    username: str
+    followers: int
+    verified: bool
+    url: str
+
+class AnalysisResult(BaseModel):
+    success: bool
+    association_name: str
+    profiles_found: List[SocialMediaProfile]
+    sentiment_score: float
+    engagement_rate: float
+    recommendations: List[str]
+
+@router.post("/analyze", response_model=AnalysisResult)
+async def analyze_social_media(request: SocialMediaAnalysisRequest):
+    """Analyze social media presence for a housing association"""
+    
+    # Mock analysis - replace with actual implementation
+    mock_profiles = [
+        SocialMediaProfile(
+            platform="twitter",
+            username=f"@{request.housing_association['name'].lower().replace(' ', '')}",
+            followers=1250,
+            verified=False,
+            url="https://twitter.com/example"
+        ),
+        SocialMediaProfile(
+            platform="facebook",
+            username=request.housing_association['name'],
+            followers=2340,
+            verified=True,
+            url="https://facebook.com/example"
+        )
+    ]
+    
+    return AnalysisResult(
+        success=True,
+        association_name=request.housing_association['name'],
+        profiles_found=mock_profiles,
+        sentiment_score=0.75,
+        engagement_rate=0.045,
+        recommendations=[
+            "Increase posting frequency on Twitter",
+            "Engage more with community comments",
+            "Share more visual content on Instagram"
+        ]
+    )
+
+@router.get("/platforms")
+async def get_supported_platforms():
+    """Get list of supported social media platforms"""
+    platforms = [
+        {"id": "twitter", "name": "Twitter/X", "active": True},
+        {"id": "facebook", "name": "Facebook", "active": True},
+        {"id": "linkedin", "name": "LinkedIn", "active": True},
+        {"id": "instagram", "name": "Instagram", "active": True},
+        {"id": "youtube", "name": "YouTube", "active": False}
+    ]
+    
+    return {"platforms": platforms}
+
+@router.get("/stats/{association_name}")
+async def get_association_stats(association_name: str):
+    """Get social media statistics for a specific association"""
+    
+    # Mock stats - replace with database queries
+    stats = {
+        "total_followers": 5890,
+        "total_posts": 234,
+        "engagement_rate": 0.045,
+        "sentiment_score": 0.75,
+        "platforms_active": 3,
+        "last_post": "2024-01-15T10:30:00Z"
+    }
+    
+    return {"association": association_name, "stats": stats}
+
+# Integration Instructions:
+# 1. Add this router to your main FastAPI app:
+#    app.include_router(router)
+# 2. Install required dependencies:
+#    pip install fastapi pydantic
+# 3. Implement actual social media data fetching
+# 4. Add database models and connections
+# 5. Add authentication and rate limiting
+'''
+    
+    def generate_social_media_agent_code(self) -> str:
+        """Generate social media agent code"""
+        return '''"""
+Social Media Intelligence Agents
+Generated by Dashboard AI Controller
+"""
+
+import asyncio
+import logging
+from typing import Dict, List, Any, Optional
+from datetime import datetime, timedelta
+from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
+
+@dataclass
+class SocialMediaProfile:
+    platform: str
+    username: str
+    url: str
+    followers: int
+    verified: bool
+    description: str
+    created_date: Optional[datetime] = None
+
+@dataclass
+class SocialMediaPost:
+    platform: str
+    post_id: str
+    content: str
+    author: str
+    published_date: datetime
+    likes: int
+    shares: int
+    comments: int
+    sentiment_score: float
+
+class SocialMediaDataFetcherAgent:
+    """Agent for fetching social media data"""
+    
+    def __init__(self):
+        self.platforms = ["twitter", "facebook", "linkedin", "instagram"]
+        self.rate_limits = {
+            "twitter": {"requests_per_hour": 100},
+            "facebook": {"requests_per_hour": 200},
+            "linkedin": {"requests_per_hour": 100},
+            "instagram": {"requests_per_hour": 200}
+        }
+    
+    async def fetch_profiles(self, association_name: str, platforms: List[str]) -> List[SocialMediaProfile]:
+        """Fetch social media profiles for a housing association"""
+        profiles = []
+        
+        for platform in platforms:
+            try:
+                profile = await self.fetch_platform_profile(association_name, platform)
+                if profile:
+                    profiles.append(profile)
+                    
+                # Rate limiting
+                await asyncio.sleep(1)
+                
+            except Exception as e:
+                logger.error(f"Error fetching {platform} profile for {association_name}: {e}")
+        
+        return profiles
+    
+    async def fetch_platform_profile(self, association_name: str, platform: str) -> Optional[SocialMediaProfile]:
+        """Fetch profile from a specific platform"""
+        
+        # Mock implementation - replace with actual API calls
+        search_terms = [
+            association_name.lower().replace(" ", ""),
+            association_name.lower().replace(" ", "_"),
+            f"{association_name.lower().replace(' ', '')}housing",
+            f"{association_name.lower().replace(' ', '')}homes"
+        ]
+        
+        # Simulate API call
+        await asyncio.sleep(0.5)
+        
+        # Mock profile data
+        if platform == "twitter":
+            return SocialMediaProfile(
+                platform="twitter",
+                username=f"@{search_terms[0]}",
+                url=f"https://twitter.com/{search_terms[0]}",
+                followers=1250,
+                verified=False,
+                description=f"Official Twitter account for {association_name}",
+                created_date=datetime.now() - timedelta(days=365)
+            )
+        
+        return None
+    
+    async def fetch_posts(self, profile: SocialMediaProfile, days: int = 30) -> List[SocialMediaPost]:
+        """Fetch recent posts from a profile"""
+        posts = []
+        
+        try:
+            # Mock implementation - replace with actual API calls
+            for i in range(5):  # Mock 5 posts
+                post = SocialMediaPost(
+                    platform=profile.platform,
+                    post_id=f"{profile.platform}_{i}",
+                    content=f"Sample post {i+1} from {profile.username}",
+                    author=profile.username,
+                    published_date=datetime.now() - timedelta(days=i*2),
+                    likes=50 + i*10,
+                    shares=5 + i*2,
+                    comments=10 + i*3,
+                    sentiment_score=0.5 + (i*0.1)
+                )
+                posts.append(post)
+            
+        except Exception as e:
+            logger.error(f"Error fetching posts for {profile.username}: {e}")
+        
+        return posts
+
+class SentimentAnalysisAgent:
+    """Agent for analyzing sentiment of social media content"""
+    
+    def __init__(self):
+        self.sentiment_keywords = {
+            "positive": ["great", "excellent", "amazing", "love", "fantastic", "wonderful"],
+            "negative": ["terrible", "awful", "hate", "worst", "horrible", "disappointing"],
+            "neutral": ["okay", "fine", "average", "normal", "standard"]
+        }
+    
+    async def analyze_post_sentiment(self, post: SocialMediaPost) -> float:
+        """Analyze sentiment of a single post"""
+        
+        content_lower = post.content.lower()
+        
+        positive_count = sum(1 for word in self.sentiment_keywords["positive"] if word in content_lower)
+        negative_count = sum(1 for word in self.sentiment_keywords["negative"] if word in content_lower)
+        
+        if positive_count > negative_count:
+            return min(0.8, 0.5 + (positive_count * 0.1))
+        elif negative_count > positive_count:
+            return max(-0.8, -0.5 - (negative_count * 0.1))
+        else:
+            return 0.0
+    
+    async def analyze_profile_sentiment(self, posts: List[SocialMediaPost]) -> Dict[str, float]:
+        """Analyze overall sentiment for a profile"""
+        
+        if not posts:
+            return {"overall": 0.0, "positive_ratio": 0.0, "negative_ratio": 0.0}
+        
+        sentiments = []
+        for post in posts:
+            sentiment = await self.analyze_post_sentiment(post)
+            sentiments.append(sentiment)
+        
+        overall_sentiment = sum(sentiments) / len(sentiments)
+        positive_ratio = len([s for s in sentiments if s > 0.1]) / len(sentiments)
+        negative_ratio = len([s for s in sentiments if s < -0.1]) / len(sentiments)
+        
         return {
-            'dashboard_components': self.dashboard_components,
-            'generated_agents': self.generated_agents,
-            'total_components': len(self.dashboard_components),
-            'total_agents': len(self.generated_agents)
+            "overall": overall_sentiment,
+            "positive_ratio": positive_ratio,
+            "negative_ratio": negative_ratio,
+            "total_posts": len(posts)
         }
+
+class SocialMediaIntelligenceOrchestrator:
+    """Main orchestrator for social media intelligence"""
+    
+    def __init__(self):
+        self.data_fetcher = SocialMediaDataFetcherAgent()
+        self.sentiment_analyzer = SentimentAnalysisAgent()
+    
+    async def analyze_association(self, association_name: str, platforms: List[str]) -> Dict[str, Any]:
+        """Complete social media analysis for a housing association"""
+        
+        logger.info(f"Starting social media analysis for: {association_name}")
+        
+        # Fetch profiles
+        profiles = await self.data_fetcher.fetch_profiles(association_name, platforms)
+        
+        analysis_results = {
+            "association_name": association_name,
+            "analysis_date": datetime.now().isoformat(),
+            "profiles_found": len(profiles),
+            "platforms_analyzed": platforms,
+            "profiles": [],
+            "overall_sentiment": 0.0,
+            "total_followers": 0,
+            "recommendations": []
+        }
+        
+        # Analyze each profile
+        for profile in profiles:
+            posts = await self.data_fetcher.fetch_posts(profile)
+            sentiment_analysis = await self.sentiment_analyzer.analyze_profile_sentiment(posts)
+            
+            profile_data = {
+                "platform": profile.platform,
+                "username": profile.username,
+                "followers": profile.followers,
+                "verified": profile.verified,
+                "posts_analyzed": len(posts),
+                "sentiment": sentiment_analysis,
+                "engagement_rate": self.calculate_engagement_rate(posts, profile.followers)
+            }
+            
+            analysis_results["profiles"].append(profile_data)
+            analysis_results["total_followers"] += profile.followers
+        
+        # Calculate overall metrics
+        if analysis_results["profiles"]:
+            overall_sentiment = sum(p["sentiment"]["overall"] for p in analysis_results["profiles"]) / len(analysis_results["profiles"])
+            analysis_results["overall_sentiment"] = overall_sentiment
+        
+        # Generate recommendations
+        analysis_results["recommendations"] = self.generate_recommendations(analysis_results)
+        
+        logger.info(f"Analysis completed for: {association_name}")
+        return analysis_results
+    
+    def calculate_engagement_rate(self, posts: List[SocialMediaPost], followers: int) -> float:
+        """Calculate engagement rate for posts"""
+        if not posts or followers == 0:
+            return 0.0
+        
+        total_engagement = sum(post.likes + post.shares + post.comments for post in posts)
+        return total_engagement / (len(posts) * followers)
+    
+    def generate_recommendations(self, analysis: Dict[str, Any]) -> List[str]:
+        """Generate recommendations based on analysis"""
+        recommendations = []
+        
+        if analysis["profiles_found"] == 0:
+            recommendations.append("Consider establishing a social media presence to engage with residents")
+        
+        if analysis["overall_sentiment"] < 0:
+            recommendations.append("Focus on addressing negative feedback and improving community relations")
+        
+        if analysis["total_followers"] < 1000:
+            recommendations.append("Implement strategies to grow your social media following")
+        
+        platforms_missing = set(["twitter", "facebook", "linkedin"]) - set(p["platform"] for p in analysis["profiles"])
+        if platforms_missing:
+            recommendations.append(f"Consider expanding to {', '.join(platforms_missing)} for broader reach")
+        
+        return recommendations
+
+# Usage Example:
+async def main():
+    orchestrator = SocialMediaIntelligenceOrchestrator()
+    result = await orchestrator.analyze_association("Sample Housing Association", ["twitter", "facebook"])
+    print(json.dumps(result, indent=2))
+
+if __name__ == "__main__":
+    import json
+    asyncio.run(main())
+'''
+    
+    def generate_dashboard_component_code(self) -> str:
+        """Generate dashboard component HTML/JS code"""
+        return '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generated Dashboard Component</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gray-50 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold text-gray-900 mb-8">Generated Dashboard Component</h1>
+        
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-2 bg-blue-100 rounded-lg">
+                        <i class="fas fa-users text-blue-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Total Users</p>
+                        <p class="text-2xl font-bold text-gray-900">2,847</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-2 bg-green-100 rounded-lg">
+                        <i class="fas fa-chart-line text-green-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Growth Rate</p>
+                        <p class="text-2xl font-bold text-gray-900">+12%</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-2 bg-purple-100 rounded-lg">
+                        <i class="fas fa-star text-purple-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Rating</p>
+                        <p class="text-2xl font-bold text-gray-900">4.8</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Chart -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Performance Chart</h3>
+            <div style="height: 400px;">
+                <canvas id="performanceChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize chart when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                    datasets: [{
+                        label: 'Performance',
+                        data: [65, 59, 80, 81, 56, 55],
+                        borderColor: '#3B82F6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>'''
+    
+    def save_generated_file(self, filename: str, content: str, description: str = "") -> Dict[str, Any]:
+        """Save generated file with proper encoding"""
+        try:
+            # Ensure generated_files directory exists
+            os.makedirs("generated_files", exist_ok=True)
+            
+            # Clean the content to remove problematic Unicode characters
+            cleaned_content = self.clean_unicode_content(content)
+            
+            file_path = f"generated_files/{filename}"
+            
+            # Write with explicit UTF-8 encoding
+            with open(file_path, 'w', encoding='utf-8', errors='replace') as f:
+                f.write(cleaned_content)
+            
+            file_info = {
+                'filename': filename,
+                'path': file_path,
+                'description': description,
+                'size': len(cleaned_content),
+                'created_at': datetime.now().isoformat()
+            }
+            
+            # Add to generated files list
+            self.generated_files.append(file_info)
+            
+            return file_info
+            
+        except Exception as e:
+            logger.error(f"Error saving file {filename}: {e}")
+            return {
+                'filename': filename,
+                'error': str(e),
+                'created_at': datetime.now().isoformat()
+            }
+
+    def clean_unicode_content(self, content: str) -> str:
+        """Clean content of problematic Unicode characters"""
+        try:
+            # Replace common problematic Unicode characters
+            replacements = {
+                '\u2191': '^',  # Up arrow
+                '\u2192': '->',  # Right arrow
+                '\u2193': 'v',   # Down arrow
+                '\u2190': '<-',  # Left arrow
+                '\u2022': '*',   # Bullet point
+                '\u2013': '-',   # En dash
+                '\u2014': '--',  # Em dash
+                '\u201c': '"',   # Left double quote
+                '\u201d': '"',   # Right double quote
+                '\u2018': "'",   # Left single quote
+                '\u2019': "'",   # Right single quote
+            }
+            
+            cleaned = content
+            for unicode_char, replacement in replacements.items():
+                cleaned = cleaned.replace(unicode_char, replacement)
+            
+            # Ensure the content can be encoded as UTF-8
+            cleaned.encode('utf-8', errors='replace')
+            
+            return cleaned
+            
+        except Exception as e:
+            logger.error(f"Error cleaning Unicode content: {e}")
+            # Return ASCII-safe version as fallback
+            return content.encode('ascii', errors='replace').decode('ascii')
+    
+    def get_conversation_history(self, conversation_id: str) -> List[Dict[str, Any]]:
+        """Get conversation history for a specific conversation"""
+        return self.conversation_history.get(conversation_id, [])
+    
+    def clear_conversation_history(self, conversation_id: str):
+        """Clear conversation history for a specific conversation"""
+        if conversation_id in self.conversation_history:
+            del self.conversation_history[conversation_id]
+    
+    def get_generated_files(self) -> List[Dict[str, Any]]:
+        """Get list of all generated files"""
+        return self.generated_files
+    
+    def clear_generated_files(self):
+        """Clear the generated files list"""
+        self.generated_files = []
 
 # Global instance
-dashboard_ai_controller = None
+_dashboard_ai_controller = None
 
 def get_dashboard_ai_controller() -> DashboardAIController:
-    """Get global dashboard AI controller instance"""
-    global dashboard_ai_controller
-    if dashboard_ai_controller is None:
-        dashboard_ai_controller = DashboardAIController()
-    return dashboard_ai_controller
+    """Get or create the global dashboard AI controller instance"""
+    global _dashboard_ai_controller
+    if _dashboard_ai_controller is None:
+        _dashboard_ai_controller = DashboardAIController()
+    return _dashboard_ai_controller

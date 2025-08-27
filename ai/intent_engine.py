@@ -276,7 +276,7 @@ async def recommend_agents(self, intent: UserIntent) -> List[AgentRecommendation
     
     return recommendations
 
-    async def understand_user_request(self, user_message: str, context: Dict = None) -> UserIntent:
+ async def understand_user_request(self, user_message: str, context: Dict = None) -> UserIntent:
         """
         Understand user intent from natural language message
         """
